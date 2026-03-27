@@ -1,0 +1,40 @@
+name: monny
+
+services:
+  db:
+    image: monny-postgres:16-alpine
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+    environment:
+      POSTGRES_DB: yeaymonny
+      POSTGRES_USER: yeaymonny
+      POSTGRES_PASSWORD: yeaymonny_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yeaymonny -d yeaymonny"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    image: monny-web:latest
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://yeaymonny:yeaymonny_password@db:5432/yeaymonny
+      POSTGRES_SSLMODE: disable
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
+      DEBUG: "False"
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

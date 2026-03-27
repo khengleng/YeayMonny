@@ -93,3 +93,28 @@ python manage.py createsuperuser
 
 - `/` chat interface
 - `/admin/` Django admin
+
+## Run with Docker (local desktop)
+
+1. Update `.env.docker` (add `OPENAI_API_KEY` if you want real AI replies).
+2. Start services:
+
+```bash
+docker compose up --build -d
+```
+
+3. Open app:
+
+- http://localhost:8000/
+
+4. View logs:
+
+```bash
+docker compose logs -f web
+```
+
+5. Stop services:
+
+```bash
+docker compose down
+```
