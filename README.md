@@ -44,11 +44,12 @@ Production-ready Django chat app for a Khmer fortune teller persona.
   - financial advisory engine:
     - gives simple money-planning guidance from user context
     - includes risk level + practical action steps
-- Built-in astrology context engine (local, no extra provider):
+  - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal
   - derives Western sign when date is available
-  - derives life-path number
+    - derives life-path number
+    - derives birth-weight style result (approximate, when full birth date/time is available)
   - derives WOFS-style Feng Shui cues:
     - Kua number (male/female)
     - favorable + caution directions

@@ -19,6 +19,7 @@ from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 from .vehicle_numerology import build_vehicle_numerology_snapshot
 from .compatibility import build_compatibility_snapshot
 from .financial_advisory import build_financial_advisory_snapshot
+from .birth_weight import build_birth_weight_snapshot
 
 
 class ChatViewTests(TestCase):
@@ -584,6 +585,27 @@ class FinancialAdvisoryEngineTests(TestCase):
         self.assertIn("loan", joined)
         self.assertIn("high-interest deposit", joined)
         self.assertIn("bond", joined)
+
+
+class BirthWeightEngineTests(TestCase):
+    def test_birth_weight_snapshot_with_full_birth_info(self) -> None:
+        snap = build_birth_weight_snapshot("12-05-1998 14:30")
+        self.assertEqual(snap.year, 1998)
+        self.assertEqual(snap.month, 5)
+        self.assertEqual(snap.day, 12)
+        self.assertEqual(snap.hour, 14)
+        self.assertTrue(snap.total_weight is not None)
+        self.assertTrue(snap.result_label)
+
+    def test_service_profile_includes_birth_weight_line(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
+        history = [Message(role=Message.Role.USER, content="សួស្តី")]
+        profile = {"birth_info": "12-05-1998 14:30"}
+        with override_settings(OPENAI_API_KEY="fake-key"), patch("chat.services.OpenAI", return_value=mock_client):
+            get_yeay_monny_reply(history, user_profile=profile)
+        profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
+        self.assertIn("Birth Weight (approx)", profile_block)
 
 
 @override_settings(

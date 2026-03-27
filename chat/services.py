@@ -11,6 +11,7 @@ from openai import OpenAI
 from openai import OpenAIError
 
 from .astrology import build_astrology_snapshot
+from .birth_weight import build_birth_weight_snapshot
 from .compatibility import build_compatibility_snapshot
 from .face_reading import build_face_reading_engine_notes
 from .financial_advisory import build_financial_advisory_snapshot
@@ -64,6 +65,7 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
     question_focus = (profile.get("question_focus") or "").strip()
     latest_user_text = (profile.get("latest_user_text") or "").strip()
     snapshot = build_astrology_snapshot(birth_info)
+    birth_weight = build_birth_weight_snapshot(birth_info)
     engine_source_text = f"{question_focus}\n{latest_user_text}"
     feng = (
         build_fengshui_snapshot(birth_info, partner_birth_info=question_focus)
@@ -107,6 +109,14 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
         astrology_lines.append(f"- សញ្ញាផ្កាយ៖ {snapshot.western_sign}")
     if snapshot.life_path_number:
         astrology_lines.append(f"- លេខផ្លូវជីវិត៖ {snapshot.life_path_number}")
+    if birth_weight.total_weight is not None:
+        astrology_lines.append(f"- Birth Weight (approx)៖ {birth_weight.total_weight}")
+    if birth_weight.result_label:
+        astrology_lines.append(f"- លទ្ធផលទម្ងន់កំណើត៖ {birth_weight.result_label}")
+    if birth_weight.note:
+        astrology_lines.append(f"- សេចក្តីណែនាំទម្ងន់កំណើត៖ {birth_weight.note}")
+    if birth_weight.total_weight is None:
+        astrology_lines.append("- ទម្ងន់កំណើត៖ ត្រូវការថ្ងៃខែឆ្នាំកំណើតពេញ និងម៉ោងកំណើត (បើមាន)")
     astrology_block = "\n".join(astrology_lines) if astrology_lines else "- មិនទាន់គណនាបាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
     feng_lines = []
