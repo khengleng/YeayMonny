@@ -296,6 +296,8 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("សុភា", profile_block)
         self.assertIn("១៩៩៨", profile_block)
         self.assertIn("ការងារ", profile_block)
+        self.assertIn("ឆ្នាំចិន", profile_block)
+        self.assertIn("លេខផ្លូវជីវិត", profile_block)
 
     def test_service_rewrites_non_khmer_reply(self) -> None:
         config = AssistantConfig.get_solo()

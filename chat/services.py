@@ -10,6 +10,7 @@ from django.conf import settings
 from openai import OpenAI
 from openai import OpenAIError
 
+from .astrology import build_astrology_snapshot
 from .models import AssistantConfig, Message
 from .prompts import SYSTEM_PROMPT
 
@@ -54,12 +55,26 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
     name = (profile.get("name") or "").strip()
     birth_info = (profile.get("birth_info") or "").strip()
     question_focus = (profile.get("question_focus") or "").strip()
+    snapshot = build_astrology_snapshot(birth_info)
+
+    astrology_lines = []
+    if snapshot.year:
+        astrology_lines.append(f"- ឆ្នាំកំណើត (គណនា)៖ {snapshot.year}")
+    if snapshot.chinese_animal:
+        astrology_lines.append(f"- ឆ្នាំចិន៖ {snapshot.chinese_animal}")
+    if snapshot.western_sign:
+        astrology_lines.append(f"- សញ្ញាផ្កាយ៖ {snapshot.western_sign}")
+    if snapshot.life_path_number:
+        astrology_lines.append(f"- លេខផ្លូវជីវិត៖ {snapshot.life_path_number}")
+    astrology_block = "\n".join(astrology_lines) if astrology_lines else "- មិនទាន់គណនាបាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
         f"- ឈ្មោះ៖ {name or 'មិនទាន់ប្រាប់'}\n"
         f"- ថ្ងៃ/ឆ្នាំកំណើត៖ {birth_info or 'មិនទាន់ប្រាប់'}\n"
         f"- ប្រធានបទចម្បង៖ {question_focus or 'មិនទាន់ប្រាប់'}\n\n"
+        "លទ្ធផលគណនាហោរាទូទៅពីទិន្នន័យកំណើត\n"
+        f"{astrology_block}\n\n"
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"

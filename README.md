@@ -21,6 +21,12 @@ Production-ready Django chat app for a Khmer fortune teller persona.
   - web users can upload voice and images
   - Telegram users can send voice and photos
   - app transcribes/analyzes and uses results in fortune reading context
+- Built-in astrology context engine (local, no extra provider):
+  - parses birth info
+  - derives Chinese zodiac animal
+  - derives Western sign when date is available
+  - derives life-path number
+  - injects these into OpenAI prompt context before each reply
 - Admin panel to inspect conversations/messages
 - Safe guidance style (non-diagnostic, non-guaranteed outcomes)
 
