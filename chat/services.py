@@ -129,6 +129,8 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
         astrology_lines.append(f"- ឆ្នាំកំណើត (គណនា)៖ {snapshot.year}")
     if snapshot.chinese_animal:
         astrology_lines.append(f"- ឆ្នាំចិន៖ {snapshot.chinese_animal}")
+    if snapshot.age_years is not None:
+        astrology_lines.append(f"- អាយុគិតត្រឹមថ្ងៃនេះ (គណនា)៖ {snapshot.age_years} ឆ្នាំ")
     if snapshot.western_sign:
         astrology_lines.append(f"- សញ្ញាផ្កាយ៖ {snapshot.western_sign}")
     if snapshot.life_path_number:

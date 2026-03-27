@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -21,6 +22,7 @@ from .compatibility import build_compatibility_snapshot
 from .financial_advisory import build_financial_advisory_snapshot
 from .lucky_signs import build_lucky_signs_snapshot
 from .birth_weight import build_birth_weight_snapshot
+from .astrology import build_astrology_snapshot
 
 
 class ChatViewTests(TestCase):
@@ -611,6 +613,20 @@ class BirthWeightEngineTests(TestCase):
         self.assertIn("Birth Weight (approx)", profile_block)
 
 
+class AstrologyEngineTests(TestCase):
+    def test_age_calculates_correctly_after_birthday(self) -> None:
+        snap = build_astrology_snapshot("22-03-1980", reference_date=date(2026, 3, 28))
+        self.assertEqual(snap.age_years, 46)
+
+    def test_age_calculates_correctly_before_birthday(self) -> None:
+        snap = build_astrology_snapshot("22-12-1980", reference_date=date(2026, 3, 28))
+        self.assertEqual(snap.age_years, 45)
+
+    def test_age_is_none_when_full_date_missing(self) -> None:
+        snap = build_astrology_snapshot("1980", reference_date=date(2026, 3, 28))
+        self.assertIsNone(snap.age_years)
+
+
 class LuckySignsEngineTests(TestCase):
     def test_lucky_signs_rotate_by_context(self) -> None:
         a = build_lucky_signs_snapshot(
@@ -646,6 +662,16 @@ class LuckySignsEngineTests(TestCase):
             get_yeay_monny_reply(history, user_profile=profile)
         profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
         self.assertIn("លេខល្អប្តូរតាមបរិបទ", profile_block)
+
+    def test_profile_includes_age_line_for_full_birth_date(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
+        history = [Message(role=Message.Role.USER, content="ជួយមើលអាយុ")]
+        profile = {"birth_info": "22-03-1980", "question_focus": "ជីវិត"}
+        with override_settings(OPENAI_API_KEY="fake-key"), patch("chat.services.OpenAI", return_value=mock_client):
+            get_yeay_monny_reply(history, user_profile=profile)
+        profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
+        self.assertIn("អាយុគិតត្រឹមថ្ងៃនេះ (គណនា)", profile_block)
 
 
 @override_settings(

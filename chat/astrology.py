@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
+from django.utils import timezone
+
 
 KHMER_DIGITS_MAP = str.maketrans("០១២៣៤៥៦៧៨៩", "0123456789")
 
@@ -46,6 +48,7 @@ class AstrologySnapshot:
     chinese_animal: str | None = None
     western_sign: str | None = None
     life_path_number: int | None = None
+    age_years: int | None = None
 
 
 def _to_ascii_digits(raw: str) -> str:
@@ -105,14 +108,31 @@ def _life_path(year: int, month: int | None, day: int | None) -> int | None:
     return total
 
 
-def build_astrology_snapshot(birth_info: str) -> AstrologySnapshot:
+def _calculate_age_years(*, year: int, month: int | None, day: int | None, reference_date: date) -> int | None:
+    if month is None or day is None:
+        return None
+
+    try:
+        birth_date = date(year, month, day)
+    except ValueError:
+        return None
+
+    age = reference_date.year - birth_date.year
+    if (reference_date.month, reference_date.day) < (birth_date.month, birth_date.day):
+        age -= 1
+    return max(age, 0)
+
+
+def build_astrology_snapshot(birth_info: str, reference_date: date | None = None) -> AstrologySnapshot:
     year, month, day = extract_birth_parts(birth_info)
     if not year:
         return AstrologySnapshot()
 
+    current_date = reference_date or timezone.localdate()
     animal = CHINESE_ZODIAC_ANIMALS[year % 12]
     sign = _western_sign(month, day) if month and day else None
     life_path = _life_path(year, month, day)
+    age_years = _calculate_age_years(year=year, month=month, day=day, reference_date=current_date)
     return AstrologySnapshot(
         year=year,
         month=month,
@@ -120,4 +140,5 @@ def build_astrology_snapshot(birth_info: str) -> AstrologySnapshot:
         chinese_animal=animal,
         western_sign=sign,
         life_path_number=life_path,
+        age_years=age_years,
     )
