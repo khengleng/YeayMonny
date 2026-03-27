@@ -13,6 +13,7 @@ from openai import OpenAIError
 from .astrology import build_astrology_snapshot
 from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
+from .house_numerology import build_house_numerology_snapshot
 from .models import AssistantConfig, Message
 from .palm_reading import build_palm_reading_engine_notes
 from .prompts import SYSTEM_PROMPT
@@ -66,6 +67,7 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         f"{question_focus}\n{latest_user_text}",
         life_path_number=snapshot.life_path_number,
     )
+    house = build_house_numerology_snapshot(f"{question_focus}\n{latest_user_text}")
 
     astrology_lines = []
     if snapshot.year:
@@ -134,6 +136,21 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         vehicle_lines.append(f"- ភាពសមគ្នា៖ {vehicle.compatibility_hint}")
     vehicle_block = "\n".join(vehicle_lines) if vehicle_lines else "- មិនទាន់មានផ្លាកលេខសម្រាប់គណនា"
 
+    house_lines = []
+    if house.raw_candidate:
+        house_lines.append(f"- លេខអាសយដ្ឋានរកឃើញ៖ {house.raw_candidate}")
+    if house.moving_part:
+        house_lines.append(f"- លេខប្រើគណនា (moving number)៖ {house.moving_part}")
+    if house.total_value:
+        house_lines.append(f"- ផលបូកលេខសរុប៖ {house.total_value}")
+    if house.root_number:
+        house_lines.append(f"- លេខគោលផ្ទះ៖ {house.root_number}")
+    if house.meaning:
+        house_lines.append(f"- អត្ថន័យ៖ {house.meaning}")
+    if house.caution:
+        house_lines.append(f"- ចំណាំប្រុងប្រយ័ត្ន៖ {house.caution}")
+    house_block = "\n".join(house_lines) if house_lines else "- មិនទាន់មានលេខផ្ទះសម្រាប់គណនា"
+
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
         f"- ឈ្មោះ៖ {name or 'មិនទាន់ប្រាប់'}\n"
@@ -145,6 +162,8 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         f"{feng_block}\n\n"
         "លទ្ធផលគណនាផ្លាកលេខរថយន្ត (Numerology)\n"
         f"{vehicle_block}\n\n"
+        "លទ្ធផលគណនាលេខផ្ទះ (Numerology)\n"
+        f"{house_block}\n\n"
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"

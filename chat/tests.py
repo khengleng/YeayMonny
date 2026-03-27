@@ -12,6 +12,7 @@ from openai import OpenAIError
 
 from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
+from .house_numerology import build_house_numerology_snapshot
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .palm_reading import build_palm_reading_engine_notes
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
@@ -308,6 +309,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("ទិសល្អប្រចាំឆ្នាំ", profile_block)
         self.assertIn("TravelChinaGuide style", profile_block)
         self.assertIn("ផ្លាកលេខរថយន្ត", profile_block)
+        self.assertIn("លេខផ្ទះ", profile_block)
 
 
     def test_service_rewrites_non_khmer_reply(self) -> None:
@@ -447,6 +449,21 @@ class VehicleNumerologyTests(TestCase):
         snap = build_vehicle_numerology_snapshot("ចៅសួររឿងការងារ")
         self.assertIsNone(snap.plate_raw)
         self.assertIsNone(snap.root_number)
+
+
+class HouseNumerologyTests(TestCase):
+    def test_house_snapshot_uses_moving_number_from_slash_address(self) -> None:
+        snap = build_house_numerology_snapshot("ចៅសូមមើលផ្ទះលេខ 14/18")
+        self.assertEqual(snap.raw_candidate, "14/18")
+        self.assertEqual(snap.moving_part, "18")
+        self.assertEqual(snap.total_value, 9)
+        self.assertEqual(snap.root_number, 9)
+
+    def test_house_snapshot_for_letter_suffix(self) -> None:
+        snap = build_house_numerology_snapshot("ផ្ទះខ្ញុំ 47A")
+        self.assertEqual(snap.moving_part, "47A")
+        self.assertEqual(snap.total_value, 12)
+        self.assertEqual(snap.root_number, 3)
 
 
 @override_settings(

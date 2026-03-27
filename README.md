@@ -29,6 +29,10 @@ Production-ready Django chat app for a Khmer fortune teller persona.
     - extracts plate from user text
     - computes alphanumeric total + root number
     - adds Khmer guidance for driving/luck style
+  - house-number numerology helper:
+    - supports formats like `A59`, `14/18`, `47A`
+    - follows moving-number calculation pattern
+    - computes root number + Khmer meaning
 - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal
