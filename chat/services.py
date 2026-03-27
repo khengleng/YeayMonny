@@ -14,6 +14,7 @@ from .astrology import build_astrology_snapshot
 from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, Message
+from .palm_reading import build_palm_reading_engine_notes
 from .prompts import SYSTEM_PROMPT
 
 KHMER_GUARD_PROMPT = """
@@ -198,7 +199,9 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
         "1) បើជារូបមុខ (face)៖ សូមពិពណ៌នាសញ្ញាទូទៅដែលមើលឃើញពីមុខ ដូចជា ទឹកមុខ ភ្នែក ការបង្ហាញអារម្មណ៍ទូទៅ "
         "ហើយភ្ជាប់ជាការណែនាំជីវិតបែបទន់ភ្លន់ (មិនអះអាង១០០%)។\n"
         "2) បើជារូបបាតដៃ (palm)៖ សូមពិពណ៌នាបន្ទាត់/រាងទូទៅដែលមើលឃើញច្បាស់ "
-        "ហើយភ្ជាប់ជាការណែនាំស្នេហា ការងារ លុយកាក់ បែបទូទៅ (មិនទុកចិត្តដាច់ខាត)។\n"
+        "ហើយភ្ជាប់ជាការណែនាំស្នេហា ការងារ លុយកាក់ បែបទូទៅ (មិនទុកចិត្តដាច់ខាត)។ "
+        "សូមពិពណ៌នាឱ្យបានចំណុចបន្ទាត់សំខាន់៖ បន្ទាត់បេះដូង បន្ទាត់គំនិត បន្ទាត់ជីវិត បន្ទាត់វាសនា "
+        "និងបន្ទាត់ព្រះអាទិត្យ (បើឃើញ)។\n"
         "3) បើមិនមែនមុខ ឬ បាតដៃ៖ សូមពិពណ៌នាសញ្ញាទូទៅក្នុងរូប "
         "ហើយបកស្រាយជាគន្លឹះមើលជោគជាតាបែបខ្មែរ+ចិន។\n"
         "4) បើរូបមិនច្បាស់៖ សូមនិយាយត្រង់ៗថាមិនច្បាស់ ហើយស្នើឱ្យផ្ញើរូបថ្មីច្បាស់ជាងមុន។\n\n"
@@ -244,8 +247,11 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
 
     text = (response.output_text or "").strip()
     face_notes = build_face_reading_engine_notes(text)
+    palm_notes = build_palm_reading_engine_notes(text)
     if face_notes:
-        return f"{text}\n\n{face_notes}".strip()
+        text = f"{text}\n\n{face_notes}".strip()
+    if palm_notes:
+        text = f"{text}\n\n{palm_notes}".strip()
     return text
 
 

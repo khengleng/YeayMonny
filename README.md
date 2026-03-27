@@ -23,6 +23,8 @@ Production-ready Django chat app for a Khmer fortune teller persona.
   - app transcribes/analyzes and uses results in fortune reading context
   - face images now go through a rule-based face-reading engine
     (forehead, eyes, nose, mouth, chin, ears) before final reading
+  - palm images now go through a rule-based palm-reading engine
+    (heart line, head line, life line, fate line, sun line) before final reading
 - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal

@@ -13,6 +13,7 @@ from openai import OpenAIError
 from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
+from .palm_reading import build_palm_reading_engine_notes
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 
 
@@ -414,6 +415,21 @@ class FaceReadingEngineTests(TestCase):
     def test_face_engine_ignores_non_face_context(self) -> None:
         text = "រូបនេះជាទេសភាពភ្នំ និងមេឃ មិនឃើញមុខមនុស្ស។"
         notes = build_face_reading_engine_notes(text)
+        self.assertEqual(notes, "")
+
+
+class PalmReadingEngineTests(TestCase):
+    def test_palm_engine_adds_line_based_notes(self) -> None:
+        text = "រូបបាតដៃនេះឃើញបន្ទាត់បេះដូងវែង បន្ទាត់គំនិតត្រង់ បន្ទាត់ជីវិតជ្រៅ និងបន្ទាត់វាសនាច្បាស់។"
+        notes = build_palm_reading_engine_notes(text)
+        self.assertIn("បន្ទាត់បេះដូង", notes)
+        self.assertIn("បន្ទាត់គំនិត", notes)
+        self.assertIn("បន្ទាត់ជីវិត", notes)
+        self.assertIn("បន្ទាត់វាសនា", notes)
+
+    def test_palm_engine_ignores_non_palm_context(self) -> None:
+        text = "រូបនេះមិនឃើញបាតដៃទេ ជាទេសភាពធម្មជាតិ។"
+        notes = build_palm_reading_engine_notes(text)
         self.assertEqual(notes, "")
 
 
