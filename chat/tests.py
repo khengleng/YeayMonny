@@ -266,6 +266,23 @@ class AssistantConfigServiceTests(TestCase):
 
         self.assertEqual(reply, KHMER_ONLY_FALLBACK)
 
+    def test_service_rewrites_repetitive_reply(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.side_effect = [
+            SimpleNamespace(output_text="យាយសូមណែនាំដដែល"),
+            SimpleNamespace(output_text="កូនអើយ លើកនេះយាយសូមប្តូររបៀបណែនាំឱ្យសមស្ថានភាពកូន។"),
+        ]
+
+        history = [
+            Message(role=Message.Role.USER, content="ជួយមើលការងារ"),
+            Message(role=Message.Role.ASSISTANT, content="យាយសូមណែនាំដដែល"),
+        ]
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history)
+
+        self.assertEqual(reply, "កូនអើយ លើកនេះយាយសូមប្តូររបៀបណែនាំឱ្យសមស្ថានភាពកូន។")
+        self.assertEqual(mock_client.responses.create.call_count, 2)
+
 
 @override_settings(
     TELEGRAM_BOT_TOKEN="test-token",

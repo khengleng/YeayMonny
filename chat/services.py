@@ -17,6 +17,16 @@ KHMER_GUARD_PROMPT = """
 - កុំប្រើប្រយោគភាសាអង់គ្លេស
 - ប្រើពាក្យសាមញ្ញ ងាយយល់
 """
+ANTI_REPETITION_GUARD_PROMPT = """
+ច្បាប់មិនឱ្យឆ្លើយដដែលៗ
+- រាល់ចម្លើយត្រូវប្តូរពាក្យបើក និងពាក្យបិទ
+- កុំប្រើឃ្លាដដែលៗរៀងរាល់លើក
+- កុំឆ្លើយជាទម្រង់ដដែលទាំងអស់
+- ប្រែប្ដូររបៀបណែនាំ៖ ពេលខ្លះផ្នែកអារម្មណ៍ ពេលខ្លះផ្នែកជាក់ស្តែង ពេលខ្លះដាស់តឿន
+- ចូលបញ្ចូលព័ត៌មានអ្នកសួរ (ឈ្មោះ ថ្ងៃកំណើត ស្ថានភាព) បើមាន
+- កុំឱ្យលេខល្អ ពណ៌ល្អ ទិសល្អ ដូចគ្នាជានិច្ច
+- សម្លេងនៅតែជាយាយមុន្នី: ទន់ភ្លន់ កក់ក្តៅ មានបទពិសោធន៍
+"""
 KHMER_ONLY_FALLBACK = "កូនអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 
 
@@ -24,6 +34,7 @@ def _build_messages(history: Iterable[Message], system_prompt: str) -> list[dict
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
+        {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
     ]
     for item in history:
         messages.append({"role": item.role, "content": item.content})
@@ -50,6 +61,48 @@ def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str
                     "សូមកែសម្រួលអត្ថបទខាងក្រោមឱ្យនៅតែអត្ថន័យដើម "
                     "ហើយឆ្លើយតែជាភាសាខ្មែរងាយៗ:\n\n"
                     f"{text}"
+                ),
+            },
+        ],
+    )
+    return (response.output_text or "").strip()
+
+
+def _looks_repetitive_against_history(text: str, history: Iterable[Message]) -> bool:
+    candidate = " ".join(text.split()).strip()
+    if not candidate:
+        return True
+
+    assistant_texts = [
+        " ".join(item.content.split()).strip()
+        for item in history
+        if item.role == Message.Role.ASSISTANT and item.content
+    ]
+    recent = assistant_texts[-5:]
+    return candidate in recent
+
+
+def _rewrite_to_fresh_style(*, client: OpenAI, model_name: str, text: str, history: Iterable[Message]) -> str:
+    recent_assistant = [
+        item.content
+        for item in history
+        if item.role == Message.Role.ASSISTANT and item.content
+    ][-5:]
+    recent_block = "\n\n".join(recent_assistant) if recent_assistant else "(គ្មាន)"
+
+    response = client.responses.create(
+        model=model_name,
+        temperature=0.7,
+        input=[
+            {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
+            {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
+            {
+                "role": "user",
+                "content": (
+                    "សូមសរសេរចម្លើយនេះឡើងវិញឱ្យថ្មី មិនស្ទួននឹងចម្លើយចាស់ៗ។ "
+                    "រក្សាអត្ថន័យដើម និងភាសាខ្មែរងាយៗ។\n\n"
+                    f"ចម្លើយបច្ចុប្បន្ន:\n{text}\n\n"
+                    f"ចម្លើយចាស់ៗថ្មីៗ:\n{recent_block}"
                 ),
             },
         ],
@@ -85,6 +138,19 @@ def get_yeay_monny_reply(history: Iterable[Message]) -> str:
         except OpenAIError:
             return KHMER_ONLY_FALLBACK
         return KHMER_ONLY_FALLBACK
+
+    if text and _looks_repetitive_against_history(text, history):
+        try:
+            rewritten = _rewrite_to_fresh_style(
+                client=client,
+                model_name=model_name,
+                text=text,
+                history=history,
+            )
+            if rewritten and not _looks_non_khmer(rewritten) and not _looks_repetitive_against_history(rewritten, history):
+                return rewritten
+        except OpenAIError:
+            pass
 
     if text:
         return text
