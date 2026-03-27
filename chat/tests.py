@@ -19,6 +19,7 @@ from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 from .vehicle_numerology import build_vehicle_numerology_snapshot
 from .compatibility import build_compatibility_snapshot
 from .financial_advisory import build_financial_advisory_snapshot
+from .lucky_signs import build_lucky_signs_snapshot
 from .birth_weight import build_birth_weight_snapshot
 
 
@@ -374,6 +375,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("លេខផ្ទះ", profile_block)
         self.assertIn("Compatibility Engine", profile_block)
         self.assertIn("Financial Advisory Engine", profile_block)
+        self.assertIn("Dynamic Lucky Signs", profile_block)
 
     def test_service_profile_context_respects_engine_toggles(self) -> None:
         config = AssistantConfig.get_solo()
@@ -606,6 +608,23 @@ class BirthWeightEngineTests(TestCase):
             get_yeay_monny_reply(history, user_profile=profile)
         profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
         self.assertIn("Birth Weight (approx)", profile_block)
+
+
+class LuckySignsEngineTests(TestCase):
+    def test_lucky_signs_rotate_by_context(self) -> None:
+        a = build_lucky_signs_snapshot(
+            birth_info="12-05-1998",
+            question_focus="ការងារ",
+            latest_user_text="សូមមើល",
+            feng=None,
+        )
+        b = build_lucky_signs_snapshot(
+            birth_info="12-05-1998",
+            question_focus="ស្នេហា",
+            latest_user_text="សូមមើល",
+            feng=None,
+        )
+        self.assertNotEqual(a.lucky_numbers, b.lucky_numbers)
 
 
 @override_settings(

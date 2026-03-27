@@ -17,6 +17,7 @@ from .face_reading import build_face_reading_engine_notes
 from .financial_advisory import build_financial_advisory_snapshot
 from .fengshui import build_fengshui_snapshot
 from .house_numerology import build_house_numerology_snapshot
+from .lucky_signs import build_lucky_signs_snapshot
 from .models import AssistantConfig, Message
 from .palm_reading import build_palm_reading_engine_notes
 from .prompts import SYSTEM_PROMPT
@@ -98,6 +99,12 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
         )
         if config.enable_financial_advisory_engine
         else None
+    )
+    lucky_signs = build_lucky_signs_snapshot(
+        birth_info=birth_info,
+        question_focus=question_focus,
+        latest_user_text=latest_user_text,
+        feng=feng,
     )
 
     astrology_lines = []
@@ -239,6 +246,12 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
 
     operator_note = (config.engine_operator_note or "").strip()
     operator_block = operator_note or "- គ្មាន"
+    lucky_block = (
+        f"- លេខល្អប្តូរតាមបរិបទ៖ {', '.join(str(n) for n in lucky_signs.lucky_numbers)}\n"
+        f"- ពណ៌ល្អប្តូរតាមបរិបទ៖ {', '.join(lucky_signs.lucky_colors)}\n"
+        f"- ទិសល្អប្តូរតាមបរិបទ៖ {', '.join(lucky_signs.lucky_directions)}\n"
+        f"- ថ្ងៃល្អប្តូរតាមបរិបទ៖ {', '.join(lucky_signs.lucky_days)}"
+    )
 
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
@@ -257,6 +270,8 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
         f"{comp_block}\n\n"
         "លទ្ធផលណែនាំហិរញ្ញវត្ថុ (Financial Advisory Engine)\n"
         f"{finance_block}\n\n"
+        "សញ្ញាសំណាងប្តូរតាមបរិបទ (Dynamic Lucky Signs)\n"
+        f"{lucky_block}\n\n"
         "កំណត់ចំណាំប្រតិបត្តិការ (Operator)\n"
         f"{operator_block}\n\n"
         "ច្បាប់បន្ថែម\n"
@@ -264,6 +279,7 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
         "- កុំឆ្លើយទូទៅពេក បើមានប្រវត្តិរួចហើយ\n"
         "- ត្រូវហៅអ្នកប្រើថា 'ចៅ' ជានិច្ច\n"
+        "- ពេលអ្នកប្រើសួរ លេខ/ពណ៌/ទិស/ថ្ងៃល្អ ត្រូវយោងតាមសញ្ញាសំណាងប្តូរតាមបរិបទខាងលើ មិនឱ្យដដែលជានិច្ច\n"
         f"- កម្រិតពិន្ទុភាពត្រូវគ្នា ({config.compatibility_score_threshold}) ជាតម្លៃយោងបកស្រាយ មិនមែនការកំណត់ដាច់ខាត\n"
         "- កុំអះអាងថាជាលទ្ធផលផ្លូវការ ឬ ១០០% ត្រឹមត្រូវ; ប្រើជាការណែនាំទូទៅ"
     )

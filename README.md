@@ -44,6 +44,9 @@ Production-ready Django chat app for a Khmer fortune teller persona.
   - financial advisory engine:
     - gives simple money-planning guidance from user context
     - includes risk level + practical action steps
+  - dynamic lucky-sign engine:
+    - rotates lucky numbers/colors/directions/days by user context
+    - avoids repeating fixed lucky sets across replies
   - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal
