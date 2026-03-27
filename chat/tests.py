@@ -626,6 +626,26 @@ class LuckySignsEngineTests(TestCase):
         )
         self.assertNotEqual(a.lucky_numbers, b.lucky_numbers)
 
+    def test_profile_hides_lucky_signs_when_not_requested(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
+        history = [Message(role=Message.Role.USER, content="ជួយមើលការងារ")]
+        profile = {"birth_info": "12-05-1998", "question_focus": "ការងារ"}
+        with override_settings(OPENAI_API_KEY="fake-key"), patch("chat.services.OpenAI", return_value=mock_client):
+            get_yeay_monny_reply(history, user_profile=profile)
+        profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
+        self.assertIn("កុំបង្ហាញសញ្ញាសំណាងក្នុងចម្លើយនេះ", profile_block)
+
+    def test_profile_includes_lucky_signs_when_requested(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
+        history = [Message(role=Message.Role.USER, content="សូមផ្តល់លេខល្អថ្ងៃនេះ")]
+        profile = {"birth_info": "12-05-1998", "question_focus": "លេខល្អ"}
+        with override_settings(OPENAI_API_KEY="fake-key"), patch("chat.services.OpenAI", return_value=mock_client):
+            get_yeay_monny_reply(history, user_profile=profile)
+        profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
+        self.assertIn("លេខល្អប្តូរតាមបរិបទ", profile_block)
+
 
 @override_settings(
     TELEGRAM_BOT_TOKEN="test-token",
