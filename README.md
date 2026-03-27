@@ -33,6 +33,10 @@ Production-ready Django chat app for a Khmer fortune teller persona.
     - supports formats like `A59`, `14/18`, `47A`
     - follows moving-number calculation pattern
     - computes root number + Khmer meaning
+  - compatibility engine:
+    - estimates love compatibility score from user+partner birth cues
+    - blends zodiac, life-path, and sign-group signals
+    - adds stage-aware guidance (dating/married/breakup/reconnect intent)
 - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal

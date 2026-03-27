@@ -11,6 +11,7 @@ from openai import OpenAI
 from openai import OpenAIError
 
 from .astrology import build_astrology_snapshot
+from .compatibility import build_compatibility_snapshot
 from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
 from .house_numerology import build_house_numerology_snapshot
@@ -68,6 +69,11 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         life_path_number=snapshot.life_path_number,
     )
     house = build_house_numerology_snapshot(f"{question_focus}\n{latest_user_text}")
+    compatibility = build_compatibility_snapshot(
+        user_birth_info=birth_info,
+        question_focus=question_focus,
+        latest_user_text=latest_user_text,
+    )
 
     astrology_lines = []
     if snapshot.year:
@@ -151,6 +157,27 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         house_lines.append(f"- ចំណាំប្រុងប្រយ័ត្ន៖ {house.caution}")
     house_block = "\n".join(house_lines) if house_lines else "- មិនទាន់មានលេខផ្ទះសម្រាប់គណនា"
 
+    comp_lines = []
+    if compatibility.partner_birth_info:
+        comp_lines.append(f"- ឆ្នាំ/ថ្ងៃកំណើតគូ (រកឃើញ)៖ {compatibility.partner_birth_info}")
+    if compatibility.partner_animal:
+        comp_lines.append(f"- ឆ្នាំចិនគូស្នេហ៍៖ {compatibility.partner_animal}")
+    if compatibility.partner_western_sign:
+        comp_lines.append(f"- សញ្ញាផ្កាយគូស្នេហ៍៖ {compatibility.partner_western_sign}")
+    if compatibility.relation_stage:
+        comp_lines.append(f"- ស្ថានភាពទំនាក់ទំនង៖ {compatibility.relation_stage}")
+    if compatibility.intent:
+        comp_lines.append(f"- ចេតនាសំណួរ៖ {compatibility.intent}")
+    if compatibility.score is not None:
+        comp_lines.append(f"- ពិន្ទុភាពត្រូវគ្នា (០-១០០)៖ {compatibility.score}")
+    if compatibility.level:
+        comp_lines.append(f"- កម្រិតសរុប៖ {compatibility.level}")
+    if compatibility.key_notes:
+        comp_lines.append(f"- ចំណុចសំខាន់៖ {' | '.join(compatibility.key_notes)}")
+    if compatibility.guidance:
+        comp_lines.append(f"- ដំបូន្មាន៖ {compatibility.guidance}")
+    comp_block = "\n".join(comp_lines) if comp_lines else "- មិនទាន់មានទិន្នន័យគូស្នេហ៍សម្រាប់គណនា"
+
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
         f"- ឈ្មោះ៖ {name or 'មិនទាន់ប្រាប់'}\n"
@@ -164,6 +191,8 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         f"{vehicle_block}\n\n"
         "លទ្ធផលគណនាលេខផ្ទះ (Numerology)\n"
         f"{house_block}\n\n"
+        "លទ្ធផលគណនាភាពត្រូវគ្នាស្នេហា (Compatibility Engine)\n"
+        f"{comp_block}\n\n"
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"

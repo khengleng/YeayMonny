@@ -17,6 +17,7 @@ from .models import AssistantConfig, AssistantConfigHistory, Conversation, Messa
 from .palm_reading import build_palm_reading_engine_notes
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 from .vehicle_numerology import build_vehicle_numerology_snapshot
+from .compatibility import build_compatibility_snapshot
 
 
 class ChatViewTests(TestCase):
@@ -310,6 +311,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("TravelChinaGuide style", profile_block)
         self.assertIn("ផ្លាកលេខរថយន្ត", profile_block)
         self.assertIn("លេខផ្ទះ", profile_block)
+        self.assertIn("Compatibility Engine", profile_block)
 
 
     def test_service_rewrites_non_khmer_reply(self) -> None:
@@ -464,6 +466,28 @@ class HouseNumerologyTests(TestCase):
         self.assertEqual(snap.moving_part, "47A")
         self.assertEqual(snap.total_value, 12)
         self.assertEqual(snap.root_number, 3)
+
+
+class CompatibilityEngineTests(TestCase):
+    def test_compatibility_snapshot_with_partner_year(self) -> None:
+        snap = build_compatibility_snapshot(
+            user_birth_info="12-05-1998",
+            question_focus="ស្នេហាជាមួយគាត់ 1994 ត្រូវគ្នាទេ",
+            latest_user_text="",
+        )
+        self.assertEqual(snap.partner_year, 1994)
+        self.assertTrue(snap.score is not None)
+        self.assertTrue(snap.level)
+        self.assertTrue(snap.key_notes)
+
+    def test_compatibility_snapshot_without_partner(self) -> None:
+        snap = build_compatibility_snapshot(
+            user_birth_info="1998",
+            question_focus="ចៅចង់ដឹងស្នេហា",
+            latest_user_text="",
+        )
+        self.assertIsNone(snap.partner_year)
+        self.assertIsNone(snap.score)
 
 
 @override_settings(
