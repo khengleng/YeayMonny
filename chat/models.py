@@ -2,6 +2,8 @@ import uuid
 
 from django.db import models
 
+from .prompts import SYSTEM_PROMPT
+
 
 class Conversation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -38,3 +40,31 @@ class Message(models.Model):
 
     def __str__(self) -> str:
         return f"{self.role} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class AssistantConfig(models.Model):
+    system_prompt = models.TextField(default=SYSTEM_PROMPT)
+    model_name = models.CharField(max_length=100, default="gpt-4.1-mini")
+    temperature = models.FloatField(default=0.8)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=150, blank=True)
+
+    class Meta:
+        verbose_name = "Assistant Configuration"
+        verbose_name_plural = "Assistant Configuration"
+
+    @classmethod
+    def get_solo(cls) -> "AssistantConfig":
+        config, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "system_prompt": SYSTEM_PROMPT,
+                "model_name": "gpt-4.1-mini",
+                "temperature": 0.8,
+            },
+        )
+        return config
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)

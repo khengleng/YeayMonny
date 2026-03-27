@@ -94,6 +94,8 @@ python manage.py createsuperuser
 - `/` chat interface
 - `/admin/` Django admin
 - `/webhooks/telegram/` Telegram webhook endpoint
+- `/operator/login/` operator login page
+- `/operator/` operator configuration portal (staff-only)
 
 ## Telegram setup
 

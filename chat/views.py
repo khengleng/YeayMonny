@@ -1,16 +1,29 @@
 import json
 
 from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView, LogoutView
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Conversation, Message
+from .forms import AssistantConfigForm
+from .models import AssistantConfig, Conversation, Message
 from .services import get_yeay_monny_reply
 from .telegram import send_telegram_message
 
 FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ មកអង្គុយសិន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
+
+
+class OperatorLoginView(LoginView):
+    template_name = "chat/operator_login.html"
+    redirect_authenticated_user = True
+
+
+class OperatorLogoutView(LogoutView):
+    next_page = "chat:operator_login"
 
 
 def _get_or_create_conversation(request: HttpRequest) -> Conversation:
@@ -36,6 +49,10 @@ def _get_or_create_telegram_conversation(chat_id: int | str) -> Conversation:
     if conversation:
         return conversation
     return Conversation.objects.create(session_key=session_key)
+
+
+def _is_staff_user(user) -> bool:
+    return bool(user and user.is_authenticated and user.is_staff)
 
 
 @require_http_methods(["GET", "POST"])
@@ -91,6 +108,28 @@ def chat_home(request: HttpRequest) -> HttpResponse:
             "messages": messages,
         },
     )
+
+
+@login_required(login_url="chat:operator_login")
+@require_http_methods(["GET", "POST"])
+def operator_dashboard(request: HttpRequest) -> HttpResponse:
+    if not _is_staff_user(request.user):
+        return HttpResponse(status=403)
+
+    config = AssistantConfig.get_solo()
+
+    if request.method == "POST":
+        form = AssistantConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            updated_config = form.save(commit=False)
+            updated_config.updated_by = request.user.get_username()
+            updated_config.save()
+            messages.success(request, "Updated configuration successfully.")
+            return redirect("chat:operator_dashboard")
+    else:
+        form = AssistantConfigForm(instance=config)
+
+    return render(request, "chat/operator_dashboard.html", {"form": form})
 
 
 @csrf_exempt

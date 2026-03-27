@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operator Portal | Yeay Monny</title>
+    <style>
+      body { font-family: sans-serif; margin: 0; background: #f5f7fb; }
+      .wrap { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+      .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+      h1 { margin: 0 0 8px; }
+      .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+      a.btn { text-decoration: none; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; }
+      label { display: block; margin-top: 14px; font-weight: 600; }
+      textarea, input { width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid #d0d7de; font: inherit; }
+      button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: #2f7d32; color: #fff; }
+      .msg { background: #ebf9ef; border: 1px solid #99d8a8; color: #17602d; padding: 10px; border-radius: 8px; margin-bottom: 12px; }
+      .help { color: #555; font-size: 0.95rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="top">
+          <div>
+            <h1>Operator Portal</h1>
+            <p class="help">Update Yeay Monny prompt and model behavior in real time.</p>
+          </div>
+          <a class="btn" href="{% url 'chat:operator_logout' %}">Logout</a>
+        </div>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="msg">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+
+          <label for="id_system_prompt">System Prompt</label>
+          {{ form.system_prompt }}
+
+          <label for="id_model_name">Model Name</label>
+          {{ form.model_name }}
+
+          <label for="id_temperature">Temperature (0.0 - 2.0)</label>
+          {{ form.temperature }}
+
+          <button type="submit">Save Configuration</button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

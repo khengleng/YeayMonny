@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Conversation, Message
+from .models import AssistantConfig, Conversation, Message
 
 
 class MessageInline(admin.TabularInline):
@@ -31,3 +31,12 @@ class MessageAdmin(admin.ModelAdmin):
     search_fields = ("conversation__id", "content")
     list_filter = ("role", "created_at")
     readonly_fields = ("created_at",)
+
+
+@admin.register(AssistantConfig)
+class AssistantConfigAdmin(admin.ModelAdmin):
+    list_display = ("id", "model_name", "temperature", "updated_at", "updated_by")
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not AssistantConfig.objects.exists()
