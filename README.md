@@ -95,7 +95,43 @@ python manage.py createsuperuser
 - `/admin/` Django admin
 - `/webhooks/telegram/` Telegram webhook endpoint
 - `/operator/login/` operator login page
-- `/operator/` operator configuration portal (staff-only)
+- `/operator/` operator configuration portal (permission-based)
+
+## Operator roles (Editor/Admin)
+
+The operator portal now supports separate roles:
+
+- `Prompt Editor`
+  - can view operator portal
+  - can edit only `system_prompt`
+- `Prompt Admin`
+  - can view operator portal
+  - can edit `system_prompt`
+  - can edit advanced settings (`model_name`, `temperature`)
+  - can rollback to previous prompt/config versions
+
+Quick setup (after migrate):
+
+```bash
+python manage.py setup_operator_roles
+```
+
+Assign users while creating roles:
+
+```bash
+python manage.py setup_operator_roles --editor-user <editor_username> --admin-user <admin_username>
+```
+
+Or assign users from Django Admin:
+
+- `/admin/` -> `Authentication and Authorization` -> `Groups`
+- add user to `Prompt Editor` or `Prompt Admin`
+
+## Version history and rollback
+
+- Every prompt/config update creates a snapshot in `AssistantConfigHistory`
+- Rollback is available from `/operator/` for `Prompt Admin` only
+- Full history is visible in `/admin/` as `Assistant Configuration History`
 
 ## Telegram setup
 

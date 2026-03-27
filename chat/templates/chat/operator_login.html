@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="km">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Operator Login | Yeay Monny</title>
+    <title>ចូលប្រើផ្ទាំងគ្រប់គ្រង | យាយមុន្នី</title>
     <style>
-      body { font-family: sans-serif; margin: 0; background: #f8f8f8; }
+      body { font-family: "Noto Sans Khmer", sans-serif; margin: 0; background: #f8f8f8; }
       .wrap { max-width: 480px; margin: 48px auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
       h1 { margin-top: 0; }
       label { display: block; margin-top: 12px; font-weight: 600; }
@@ -16,16 +16,16 @@
   </head>
   <body>
     <div class="wrap">
-      <h1>Operator Login</h1>
-      <p>Sign in with staff account to edit Yeay Monny config.</p>
+      <h1>ចូលប្រើផ្ទាំងគ្រប់គ្រង</h1>
+      <p>សូមចូលដោយគណនី Operator ដើម្បីកែការកំណត់របស់យាយមុន្នី។</p>
       <form method="post">
         {% csrf_token %}
         {{ form.non_field_errors }}
-        <label for="id_username">Username</label>
+        <label for="id_username">ឈ្មោះគណនី</label>
         {{ form.username }}
-        <label for="id_password">Password</label>
+        <label for="id_password">ពាក្យសម្ងាត់</label>
         {{ form.password }}
-        <button type="submit">Sign In</button>
+        <button type="submit">ចូលប្រើ</button>
       </form>
     </div>
   </body>

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AssistantConfig, Conversation, Message
+from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 
 
 class MessageInline(admin.TabularInline):
@@ -40,3 +40,22 @@ class AssistantConfigAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not AssistantConfig.objects.exists()
+
+
+@admin.register(AssistantConfigHistory)
+class AssistantConfigHistoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "change_reason", "model_name", "temperature", "changed_by", "created_at")
+    list_filter = ("change_reason", "created_at")
+    search_fields = ("changed_by", "model_name", "system_prompt")
+    readonly_fields = (
+        "config",
+        "system_prompt",
+        "model_name",
+        "temperature",
+        "changed_by",
+        "change_reason",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False

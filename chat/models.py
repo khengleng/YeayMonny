@@ -52,6 +52,10 @@ class AssistantConfig(models.Model):
     class Meta:
         verbose_name = "Assistant Configuration"
         verbose_name_plural = "Assistant Configuration"
+        permissions = (
+            ("rollback_assistantconfig", "Can rollback assistant configuration"),
+            ("manage_advanced_assistantconfig", "Can manage advanced assistant settings"),
+        )
 
     @classmethod
     def get_solo(cls) -> "AssistantConfig":
@@ -68,3 +72,46 @@ class AssistantConfig(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+
+
+class AssistantConfigHistory(models.Model):
+    class ChangeReason(models.TextChoices):
+        UPDATE = "update", "Update"
+        ROLLBACK = "rollback", "Rollback"
+
+    config = models.ForeignKey(
+        AssistantConfig,
+        on_delete=models.CASCADE,
+        related_name="history",
+    )
+    system_prompt = models.TextField()
+    model_name = models.CharField(max_length=100)
+    temperature = models.FloatField()
+    changed_by = models.CharField(max_length=150, blank=True)
+    change_reason = models.CharField(max_length=20, choices=ChangeReason.choices, default=ChangeReason.UPDATE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Assistant Configuration History"
+        verbose_name_plural = "Assistant Configuration History"
+
+    def __str__(self) -> str:
+        return f"{self.get_change_reason_display()} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+    @classmethod
+    def snapshot(
+        cls,
+        *,
+        config: AssistantConfig,
+        changed_by: str,
+        change_reason: str = ChangeReason.UPDATE,
+    ) -> "AssistantConfigHistory":
+        return cls.objects.create(
+            config=config,
+            system_prompt=config.system_prompt,
+            model_name=config.model_name,
+            temperature=config.temperature,
+            changed_by=changed_by,
+            change_reason=change_reason,
+        )

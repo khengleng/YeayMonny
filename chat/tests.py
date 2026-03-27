@@ -4,10 +4,11 @@ from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import AssistantConfig, Conversation, Message
+from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .services import get_yeay_monny_reply
 
 
@@ -42,35 +43,49 @@ class ChatViewTests(TestCase):
 class OperatorPortalTests(TestCase):
     def setUp(self) -> None:
         user_model = get_user_model()
-        self.staff_user = user_model.objects.create_user(
-            username="operator",
+        self.editor_user = user_model.objects.create_user(
+            username="editor",
             password="testpass123",
-            is_staff=True,
+        )
+        self.admin_user = user_model.objects.create_user(
+            username="admin",
+            password="testpass123",
         )
         self.normal_user = user_model.objects.create_user(
             username="viewer",
             password="testpass123",
-            is_staff=False,
         )
+        self._grant_permissions()
+
+    def _grant_permissions(self) -> None:
+        self.editor_user.user_permissions.add(self._perm("view_assistantconfig"))
+        self.editor_user.user_permissions.add(self._perm("change_assistantconfig"))
+
+        self.admin_user.user_permissions.add(self._perm("view_assistantconfig"))
+        self.admin_user.user_permissions.add(self._perm("change_assistantconfig"))
+        self.admin_user.user_permissions.add(self._perm("manage_advanced_assistantconfig"))
+        self.admin_user.user_permissions.add(self._perm("rollback_assistantconfig"))
+
+    def _perm(self, codename: str) -> Permission:
+        return Permission.objects.get(codename=codename)
 
     def test_operator_requires_login(self) -> None:
         response = self.client.get(reverse("chat:operator_dashboard"))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("chat:operator_login"), response.url)
 
-    def test_non_staff_gets_forbidden(self) -> None:
+    def test_non_operator_gets_forbidden(self) -> None:
         self.client.login(username="viewer", password="testpass123")
         response = self.client.get(reverse("chat:operator_dashboard"))
         self.assertEqual(response.status_code, 403)
 
-    def test_staff_can_update_assistant_config(self) -> None:
-        self.client.login(username="operator", password="testpass123")
+    def test_editor_can_update_prompt_only(self) -> None:
+        self.client.login(username="editor", password="testpass123")
         response = self.client.post(
             reverse("chat:operator_dashboard"),
             {
+                "action": "save_prompt",
                 "system_prompt": "prompt from operator",
-                "model_name": "gpt-4.1-mini",
-                "temperature": "0.4",
             },
             follow=True,
         )
@@ -78,9 +93,72 @@ class OperatorPortalTests(TestCase):
 
         config = AssistantConfig.get_solo()
         self.assertEqual(config.system_prompt, "prompt from operator")
-        self.assertEqual(config.model_name, "gpt-4.1-mini")
-        self.assertEqual(config.temperature, 0.4)
-        self.assertEqual(config.updated_by, "operator")
+        self.assertEqual(config.updated_by, "editor")
+        self.assertEqual(
+            AssistantConfigHistory.objects.filter(change_reason=AssistantConfigHistory.ChangeReason.UPDATE).count(),
+            1,
+        )
+
+        advanced_response = self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "save_advanced",
+                "model_name": "gpt-4.1",
+                "temperature": "0.3",
+            },
+        )
+        self.assertEqual(advanced_response.status_code, 403)
+
+    def test_admin_can_update_advanced_and_rollback(self) -> None:
+        self.client.login(username="admin", password="testpass123")
+
+        self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "save_prompt",
+                "system_prompt": "prompt A",
+            },
+            follow=True,
+        )
+        self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "save_prompt",
+                "system_prompt": "prompt B",
+            },
+            follow=True,
+        )
+        self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "save_advanced",
+                "model_name": "gpt-4.1",
+                "temperature": "0.2",
+            },
+            follow=True,
+        )
+
+        version = AssistantConfigHistory.objects.filter(system_prompt="prompt A").first()
+        assert version is not None
+        rollback_response = self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "rollback",
+                "version_id": str(version.id),
+            },
+            follow=True,
+        )
+        self.assertEqual(rollback_response.status_code, 200)
+        config = AssistantConfig.get_solo()
+        self.assertEqual(config.system_prompt, "prompt A")
+        self.assertEqual(config.updated_by, "admin")
+        self.assertEqual(config.model_name, version.model_name)
+        self.assertEqual(config.temperature, version.temperature)
+        self.assertTrue(
+            AssistantConfigHistory.objects.filter(
+                change_reason=AssistantConfigHistory.ChangeReason.ROLLBACK
+            ).exists()
+        )
 
 
 @override_settings(

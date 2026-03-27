@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="km">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Operator Portal | Yeay Monny</title>
+    <title>ផ្ទាំងអ្នកគ្រប់គ្រង | យាយមុន្នី</title>
     <style>
-      body { font-family: sans-serif; margin: 0; background: #f5f7fb; }
-      .wrap { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+      body { font-family: "Noto Sans Khmer", sans-serif; margin: 0; background: #f5f7fb; color: #1d2633; }
+      .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
       .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
       h1 { margin: 0 0 8px; }
       .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
@@ -16,6 +16,14 @@
       button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: #2f7d32; color: #fff; }
       .msg { background: #ebf9ef; border: 1px solid #99d8a8; color: #17602d; padding: 10px; border-radius: 8px; margin-bottom: 12px; }
       .help { color: #555; font-size: 0.95rem; }
+      .section { border-top: 1px solid #e9edf3; margin-top: 20px; padding-top: 20px; }
+      .muted { color: #5c6978; font-size: 0.9rem; }
+      .warn { color: #9f7c00; background: #fff8dd; border: 1px solid #f0dc8f; border-radius: 8px; padding: 10px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eef2f6; vertical-align: top; }
+      .btn-danger { background: #8f2d2d; }
+      .btn-small { margin: 0; padding: 7px 10px; font-size: 0.85rem; }
+      .empty { background: #f7f9fc; border: 1px dashed #d8e0ea; border-radius: 8px; padding: 12px; color: #5c6978; }
     </style>
   </head>
   <body>
@@ -23,10 +31,10 @@
       <div class="card">
         <div class="top">
           <div>
-            <h1>Operator Portal</h1>
-            <p class="help">Update Yeay Monny prompt and model behavior in real time.</p>
+            <h1>ផ្ទាំងអ្នកគ្រប់គ្រង</h1>
+            <p class="help">កែសម្រួលការកំណត់របស់យាយមុន្នីបានភ្លាមៗ</p>
           </div>
-          <a class="btn" href="{% url 'chat:operator_logout' %}">Logout</a>
+          <a class="btn" href="{% url 'chat:operator_logout' %}">ចាកចេញ</a>
         </div>
 
         {% if messages %}
@@ -35,20 +43,87 @@
           {% endfor %}
         {% endif %}
 
-        <form method="post">
-          {% csrf_token %}
+        <div class="section">
+          <h2>១) កែសម្រួល Prompt</h2>
+          {% if can_edit_prompt %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="save_prompt" />
+              <label for="id_system_prompt">{{ form.system_prompt.label }}</label>
+              {{ form.system_prompt }}
+              <p class="muted">{{ form.system_prompt.help_text }}</p>
+              <button type="submit">រក្សាទុក Prompt</button>
+            </form>
+          {% else %}
+            <div class="warn">អ្នកមិនមានសិទ្ធិកែ Prompt ទេ។ សូមទាក់ទង Prompt Admin។</div>
+          {% endif %}
+        </div>
 
-          <label for="id_system_prompt">System Prompt</label>
-          {{ form.system_prompt }}
+        <div class="section">
+          <h2>២) កំណត់ Model និង Temperature</h2>
+          {% if can_manage_advanced %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="save_advanced" />
 
-          <label for="id_model_name">Model Name</label>
-          {{ form.model_name }}
+              <label for="id_model_name">{{ advanced_form.model_name.label }}</label>
+              {{ advanced_form.model_name }}
+              <p class="muted">{{ advanced_form.model_name.help_text }}</p>
 
-          <label for="id_temperature">Temperature (0.0 - 2.0)</label>
-          {{ form.temperature }}
+              <label for="id_temperature">{{ advanced_form.temperature.label }}</label>
+              {{ advanced_form.temperature }}
+              <p class="muted">{{ advanced_form.temperature.help_text }}</p>
 
-          <button type="submit">Save Configuration</button>
-        </form>
+              <button type="submit">រក្សាទុកការកំណត់បន្ថែម</button>
+            </form>
+          {% else %}
+            <div class="warn">ផ្នែកនេះសម្រាប់ Prompt Admin ប៉ុណ្ណោះ។</div>
+          {% endif %}
+        </div>
+
+        <div class="section">
+          <h2>៣) ប្រវត្តិកំណែ និង Rollback</h2>
+          <p class="muted">បង្ហាញកំណែថ្មីៗ 15 ចុងក្រោយ។</p>
+          {% if history_entries %}
+            <table>
+              <thead>
+                <tr>
+                  <th>ពេលវេលា</th>
+                  <th>អ្នកកែ</th>
+                  <th>ប្រភេទ</th>
+                  <th>Model</th>
+                  <th>Temp</th>
+                  <th>សកម្មភាព</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in history_entries %}
+                  <tr>
+                    <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ entry.changed_by|default:"-" }}</td>
+                    <td>{{ entry.get_change_reason_display }}</td>
+                    <td>{{ entry.model_name }}</td>
+                    <td>{{ entry.temperature }}</td>
+                    <td>
+                      {% if can_rollback %}
+                        <form method="post">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="rollback" />
+                          <input type="hidden" name="version_id" value="{{ entry.id }}" />
+                          <button class="btn-danger btn-small" type="submit">Rollback</button>
+                        </form>
+                      {% else %}
+                        <span class="muted">គ្មានសិទ្ធិ</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="empty">មិនទាន់មានប្រវត្តិកំណែទេ។</div>
+          {% endif %}
+        </div>
       </div>
     </div>
   </body>
