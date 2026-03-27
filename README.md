@@ -17,6 +17,10 @@ Production-ready Django chat app for a Khmer fortune teller persona.
 - Uses the exact Khmer system prompt from `prompt.md`
 - Chat history persisted in database
 - Session-based conversation tracking
+- Multimodal input:
+  - web users can upload voice and images
+  - Telegram users can send voice and photos
+  - app transcribes/analyzes and uses results in fortune reading context
 - Admin panel to inspect conversations/messages
 - Safe guidance style (non-diagnostic, non-guaranteed outcomes)
 
@@ -62,6 +66,10 @@ python manage.py runserver
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
+- `OPENAI_TRANSCRIBE_MODEL`
+- `OPENAI_VISION_MODEL`
+- `MAX_IMAGE_UPLOAD_MB`
+- `MAX_AUDIO_UPLOAD_MB`
 - `TIME_ZONE`
 
 ## Railway deployment
@@ -75,6 +83,10 @@ python manage.py runserver
    - `ALLOWED_HOSTS=<your-domain>.up.railway.app`
    - `CSRF_TRUSTED_ORIGINS=https://<your-domain>.up.railway.app`
    - `OPENAI_API_KEY=<your-key>`
+   - `OPENAI_TRANSCRIBE_MODEL=gpt-4o-mini-transcribe`
+   - `OPENAI_VISION_MODEL=gpt-4.1-mini`
+   - `MAX_IMAGE_UPLOAD_MB=8`
+   - `MAX_AUDIO_UPLOAD_MB=15`
    - `DATABASE_URL` (usually auto-provided by Railway Postgres)
 5. Deploy.
 6. Run migrations in Railway shell:

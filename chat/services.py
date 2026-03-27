@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import io
 import re
 from typing import Iterable
 
@@ -39,6 +41,71 @@ def _build_messages(history: Iterable[Message], system_prompt: str) -> list[dict
     for item in history:
         messages.append({"role": item.role, "content": item.content})
     return messages
+
+
+def _build_openai_client() -> OpenAI:
+    return OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_TIMEOUT_SECONDS)
+
+
+def transcribe_audio_bytes(*, filename: str, audio_bytes: bytes) -> str:
+    if not settings.OPENAI_API_KEY or not audio_bytes:
+        return ""
+
+    model_name = settings.OPENAI_TRANSCRIBE_MODEL
+    client = _build_openai_client()
+    audio_file = io.BytesIO(audio_bytes)
+    audio_file.name = filename or "voice.ogg"
+    try:
+        transcript = client.audio.transcriptions.create(
+            model=model_name,
+            file=audio_file,
+        )
+    except OpenAIError:
+        return ""
+
+    text = (getattr(transcript, "text", "") or "").strip()
+    return text
+
+
+def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes, user_text: str = "") -> str:
+    if not settings.OPENAI_API_KEY or not image_bytes:
+        return ""
+
+    model_name = settings.OPENAI_VISION_MODEL
+    mime = content_type or "image/jpeg"
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+    image_url = f"data:{mime};base64,{b64}"
+    client = _build_openai_client()
+
+    prompt = (
+        "អ្នកជាយាយមុន្នី។ សូមមើលរូបនេះហើយសង្ខេបជាភាសាខ្មែរងាយៗ "
+        "សម្រាប់ប្រើជាប្រភពមើលជោគជាតា។ ប្រាប់តែចំណុចសំខាន់ៗដែលមើលឃើញ។"
+    )
+    if user_text:
+        prompt += f"\n\nបរិបទសំណួររបស់អ្នកប្រើ៖ {user_text}"
+
+    try:
+        response = client.responses.create(
+            model=model_name,
+            input=[
+                {
+                    "role": "system",
+                    "content": KHMER_GUARD_PROMPT.strip(),
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": prompt},
+                        {"type": "input_image", "image_url": image_url},
+                    ],
+                },
+            ],
+            temperature=0.4,
+        )
+    except OpenAIError:
+        return ""
+
+    return (response.output_text or "").strip()
 
 
 def _looks_non_khmer(text: str) -> bool:
@@ -119,7 +186,7 @@ def get_yeay_monny_reply(history: Iterable[Message]) -> str:
     model_name = config.model_name or settings.OPENAI_MODEL
     temperature = config.temperature if config.temperature is not None else 0.8
 
-    client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_TIMEOUT_SECONDS)
+    client = _build_openai_client()
     try:
         response = client.responses.create(
             model=model_name,

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from openai import OpenAIError
@@ -39,6 +40,34 @@ class ChatViewTests(TestCase):
         self.assertEqual(conversation.name, "ស្រីពៅ")
         self.assertEqual(conversation.birth_info, "2000")
         self.assertEqual(conversation.question_focus, "ការងារ")
+
+    @patch("chat.views.get_yeay_monny_reply", return_value="នេះជាចម្លើយពីយាយ")
+    @patch("chat.views.analyze_image_bytes", return_value="យាយមើលឃើញរូបមនុស្សនៅកន្លែងការងារ")
+    @patch("chat.views.transcribe_audio_bytes", return_value="ខ្ញុំចង់សួររឿងការងារ")
+    def test_post_with_voice_and_image_builds_combined_user_context(
+        self,
+        _mock_transcribe,
+        _mock_image,
+        _mock_reply,
+    ) -> None:
+        image = SimpleUploadedFile("photo.jpg", b"fake-image-bytes", content_type="image/jpeg")
+        voice = SimpleUploadedFile("voice.ogg", b"fake-voice-bytes", content_type="audio/ogg")
+
+        response = self.client.post(
+            reverse("chat:home"),
+            {
+                "name": "សុភា",
+                "message": "",
+                "image": image,
+                "voice": voice,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Message.objects.count(), 2)
+        user_message = Message.objects.filter(role=Message.Role.USER).first()
+        assert user_message is not None
+        self.assertIn("អត្ថបទបានបម្លែងពីសម្លេង", user_message.content)
+        self.assertIn("ការពិពណ៌នារូបភាពសម្រាប់មើលជោគជាតា", user_message.content)
 
 
 class OperatorPortalTests(TestCase):
@@ -323,6 +352,61 @@ class TelegramWebhookTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+    @patch("chat.views.send_telegram_message")
+    @patch("chat.views.get_yeay_monny_reply", return_value="យាយឆ្លើយពីរូបភាព")
+    @patch("chat.views.analyze_image_bytes", return_value="យាយឃើញទិដ្ឋភាពស្ងប់")
+    @patch("chat.views.fetch_telegram_file", return_value=(b"img", "image/jpeg", "photo.jpg"))
+    def test_telegram_webhook_supports_photo(
+        self,
+        _mock_fetch,
+        _mock_analyze,
+        _mock_reply,
+        mock_send,
+    ) -> None:
+        payload = {
+            "message": {
+                "chat": {"id": 77},
+                "caption": "សូមមើលរូបនេះ",
+                "photo": [{"file_id": "a1"}, {"file_id": "a2"}],
+            }
+        }
+        response = self.client.post(
+            reverse("chat:telegram_webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="secret-token",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Message.objects.filter(conversation__session_key="tg_77").count(), 2)
+        mock_send.assert_called_once()
+
+    @patch("chat.views.send_telegram_message")
+    @patch("chat.views.get_yeay_monny_reply", return_value="យាយឆ្លើយពីសម្លេង")
+    @patch("chat.views.transcribe_audio_bytes", return_value="ខ្ញុំសួរពីស្នេហា")
+    @patch("chat.views.fetch_telegram_file", return_value=(b"audio", "audio/ogg", "voice.ogg"))
+    def test_telegram_webhook_supports_voice(
+        self,
+        _mock_fetch,
+        _mock_transcribe,
+        _mock_reply,
+        mock_send,
+    ) -> None:
+        payload = {
+            "message": {
+                "chat": {"id": 88},
+                "voice": {"file_id": "v1"},
+            }
+        }
+        response = self.client.post(
+            reverse("chat:telegram_webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="secret-token",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Message.objects.filter(conversation__session_key="tg_88").count(), 2)
+        mock_send.assert_called_once()
 
 
 class TelegramPathNormalizationTests(TestCase):

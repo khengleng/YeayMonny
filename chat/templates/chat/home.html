@@ -16,15 +16,22 @@
         </header>
 
         <section class="chat-box" aria-label="Chat history">
-          {% for message in messages %}
+          {% for message in chat_messages %}
           <article class="bubble {% if message.role == 'assistant' %}assistant{% else %}user{% endif %}">
             <p>{{ message.content|linebreaksbr }}</p>
           </article>
           {% endfor %}
         </section>
 
-        <form method="post" class="chat-form">
+        <form method="post" class="chat-form" enctype="multipart/form-data">
           {% csrf_token %}
+          {% if messages %}
+            {% for alert in messages %}
+              <article class="bubble assistant">
+                <p>{{ alert }}</p>
+              </article>
+            {% endfor %}
+          {% endif %}
           <div class="grid">
             <label>
               ឈ្មោះ (ជម្រើស)
@@ -56,10 +63,20 @@
             <textarea
               name="message"
               rows="4"
-              required
-              placeholder="សួរយាយដោយភាសាសាមញ្ញ..."
+              placeholder="សួរយាយដោយភាសាសាមញ្ញ... (ឬភ្ជាប់សម្លេង/រូបភាព)"
             ></textarea>
           </label>
+
+          <div class="grid">
+            <label>
+              ផ្ញើរូបភាព (ជម្រើស)
+              <input type="file" name="image" accept="image/*" />
+            </label>
+            <label>
+              ផ្ញើសម្លេង (ជម្រើស)
+              <input type="file" name="voice" accept="audio/*" />
+            </label>
+          </div>
 
           <button type="submit">សួរយាយមុន្នី</button>
         </form>

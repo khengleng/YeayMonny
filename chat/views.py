@@ -18,10 +18,30 @@ from django.views.decorators.http import require_http_methods
 
 from .forms import AssistantAdvancedSettingsForm, AssistantPromptForm, OperatorAuthenticationForm
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
-from .services import get_yeay_monny_reply
-from .telegram import send_telegram_message
+from .services import analyze_image_bytes, get_yeay_monny_reply, transcribe_audio_bytes
+from .telegram import fetch_telegram_file, send_telegram_message
 
 FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ មកអង្គុយសិន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
+
+
+def _is_valid_upload_size(file_obj, max_mb: int) -> bool:
+    return bool(file_obj and file_obj.size <= max_mb * 1024 * 1024)
+
+
+def _build_multimodal_user_content(
+    *,
+    user_text: str,
+    audio_transcript: str,
+    image_summary: str,
+) -> str:
+    blocks: list[str] = []
+    if user_text:
+        blocks.append(f"សំណួររបស់អ្នកប្រើ៖ {user_text}")
+    if audio_transcript:
+        blocks.append(f"អត្ថបទបានបម្លែងពីសម្លេង៖ {audio_transcript}")
+    if image_summary:
+        blocks.append(f"ការពិពណ៌នារូបភាពសម្រាប់មើលជោគជាតា៖ {image_summary}")
+    return "\n\n".join(blocks).strip()
 
 
 class OperatorLoginView(LoginView):
@@ -137,7 +157,13 @@ def chat_home(request: HttpRequest) -> HttpResponse:
 
     if request.method == "POST":
         user_text = (request.POST.get("message") or "").strip()
-        if user_text:
+        image_file = request.FILES.get("image")
+        voice_file = request.FILES.get("voice")
+
+        audio_transcript = ""
+        image_summary = ""
+        has_payload = bool(user_text or image_file or voice_file)
+        if has_payload:
             name = (request.POST.get("name") or "").strip()
             birth_info = (request.POST.get("birth_info") or "").strip()
             question_focus = (request.POST.get("question_focus") or "").strip()
@@ -150,10 +176,38 @@ def chat_home(request: HttpRequest) -> HttpResponse:
                 conversation.question_focus = question_focus
             conversation.save(update_fields=["name", "birth_info", "question_focus", "updated_at"])
 
+            if voice_file:
+                if _is_valid_upload_size(voice_file, settings.MAX_AUDIO_UPLOAD_MB):
+                    audio_transcript = transcribe_audio_bytes(
+                        filename=voice_file.name,
+                        audio_bytes=voice_file.read(),
+                    )
+                else:
+                    messages.error(request, "ឯកសារសម្លេងធំពេក។ សូមបញ្ចូលឯកសារតូចជាងកំណត់។")
+
+            if image_file:
+                if _is_valid_upload_size(image_file, settings.MAX_IMAGE_UPLOAD_MB):
+                    image_summary = analyze_image_bytes(
+                        filename=image_file.name,
+                        content_type=image_file.content_type or "image/jpeg",
+                        image_bytes=image_file.read(),
+                        user_text=user_text,
+                    )
+                else:
+                    messages.error(request, "រូបភាពធំពេក។ សូមបញ្ចូលរូបតូចជាងកំណត់។")
+
+            combined_user_content = _build_multimodal_user_content(
+                user_text=user_text,
+                audio_transcript=audio_transcript,
+                image_summary=image_summary,
+            )
+            if not combined_user_content:
+                combined_user_content = "កូនអើយ យាយបានទទួលឯកសារ ប៉ុន្តែមិនទាន់អាចអានបានច្បាស់។"
+
             Message.objects.create(
                 conversation=conversation,
                 role=Message.Role.USER,
-                content=user_text,
+                content=combined_user_content,
             )
 
             history = conversation.messages.all()
@@ -181,7 +235,7 @@ def chat_home(request: HttpRequest) -> HttpResponse:
         "chat/home.html",
         {
             "conversation": conversation,
-            "messages": messages,
+            "chat_messages": messages,
         },
     )
 
@@ -315,19 +369,56 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
     text = (message.get("text") or "").strip()
+    caption = (message.get("caption") or "").strip()
+    voice_info = message.get("voice")
+    audio_info = message.get("audio")
+    photo_list = message.get("photo") or []
 
     if not chat_id:
         return JsonResponse({"ok": True})
 
-    if not text:
-        send_telegram_message(chat_id, "កូនអើយ សូមផ្ញើសារជាអក្សរមកយាយ។")
+    audio_transcript = ""
+    image_summary = ""
+
+    if voice_info and voice_info.get("file_id"):
+        fetched = fetch_telegram_file(voice_info["file_id"])
+        if fetched:
+            content, _content_type, filename = fetched
+            audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
+    elif audio_info and audio_info.get("file_id"):
+        fetched = fetch_telegram_file(audio_info["file_id"])
+        if fetched:
+            content, _content_type, filename = fetched
+            audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
+
+    if photo_list:
+        best_photo = photo_list[-1]
+        if best_photo.get("file_id"):
+            fetched = fetch_telegram_file(best_photo["file_id"])
+            if fetched:
+                content, content_type, filename = fetched
+                image_summary = analyze_image_bytes(
+                    filename=filename,
+                    content_type=content_type,
+                    image_bytes=content,
+                    user_text=text or caption,
+                )
+
+    combined_user_content = _build_multimodal_user_content(
+        user_text=text or caption,
+        audio_transcript=audio_transcript,
+        image_summary=image_summary,
+    )
+
+    if not combined_user_content:
+        send_telegram_message(chat_id, "កូនអើយ សូមផ្ញើសារជាអក្សរ សម្លេង ឬរូបភាពមកយាយ។")
         return JsonResponse({"ok": True})
 
     conversation = _get_or_create_telegram_conversation(chat_id)
     Message.objects.create(
         conversation=conversation,
         role=Message.Role.USER,
-        content=text,
+        content=combined_user_content,
     )
 
     history = conversation.messages.all()
