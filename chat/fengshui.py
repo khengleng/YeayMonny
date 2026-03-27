@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from .astrology import extract_birth_parts
 
@@ -64,6 +65,43 @@ KUA_DIRECTIONS = {
     9: ["កើត", "អាគ្នេយ៍", "ជើង", "ត្បូង"],
 }
 
+ANNUAL_BASE_LAYOUT = {
+    "ពាយ័ព្យ": 6,
+    "លិច": 7,
+    "ឦសាន": 8,
+    "ត្បូង": 9,
+    "ជើង": 1,
+    "និរតី": 2,
+    "កើត": 3,
+    "អាគ្នេយ៍": 4,
+    "មជ្ឈមណ្ឌល": 5,
+}
+
+GOOD_STARS = {1, 6, 8, 9}
+CAUTION_STARS = {2, 3, 5, 7}
+
+ZODIAC_TRIADS = (
+    (0, 4, 8),   # Rat, Dragon, Monkey
+    (1, 5, 9),   # Ox, Snake, Rooster
+    (2, 6, 10),  # Tiger, Horse, Dog
+    (3, 7, 11),  # Rabbit, Goat, Pig
+)
+
+ANIMAL_MAIN_DIRECTIONS = {
+    0: "ជើង",
+    1: "ឦសាន",
+    2: "ឦសាន",
+    3: "កើត",
+    4: "អាគ្នេយ៍",
+    5: "អាគ្នេយ៍",
+    6: "ត្បូង",
+    7: "និរតី",
+    8: "និរតី",
+    9: "លិច",
+    10: "ពាយ័ព្យ",
+    11: "ពាយ័ព្យ",
+}
+
 
 @dataclass
 class FengShuiSnapshot:
@@ -75,7 +113,17 @@ class FengShuiSnapshot:
     kua_female: int | None = None
     favorable_directions_male: list[str] | None = None
     favorable_directions_female: list[str] | None = None
+    caution_directions_male: list[str] | None = None
+    caution_directions_female: list[str] | None = None
     lucky_colors: list[str] | None = None
+    harmony_animals: list[str] | None = None
+    clash_animal: str | None = None
+    annual_center_star: int | None = None
+    annual_star_layout: dict[str, int] | None = None
+    annual_good_sectors: list[str] | None = None
+    annual_caution_sectors: list[str] | None = None
+    tai_sui_direction: str | None = None
+    sui_po_direction: str | None = None
 
 
 def _reduce_to_digit(n: int) -> int:
@@ -104,16 +152,71 @@ def _kua_number(year: int, *, is_male: bool) -> int:
     return kua
 
 
-def build_fengshui_snapshot(birth_info: str) -> FengShuiSnapshot:
+def _annual_center_star(year: int) -> int:
+    yy = year % 100
+    reduced = _reduce_to_digit((yy // 10) + (yy % 10))
+    base = 9 if year >= 2000 else 10
+    center = base - reduced
+    while center <= 0:
+        center += 9
+    return center
+
+
+def _shift_star(base_star: int, center_star: int) -> int:
+    shifted = ((base_star + (center_star - 5) - 1) % 9) + 1
+    return shifted
+
+
+def _annual_layout(center_star: int) -> dict[str, int]:
+    return {sector: _shift_star(star, center_star) for sector, star in ANNUAL_BASE_LAYOUT.items()}
+
+
+def _sectors_for_stars(layout: dict[str, int], target: set[int]) -> list[str]:
+    return [sector for sector, star in layout.items() if sector != "មជ្ឈមណ្ឌល" and star in target]
+
+
+def _harmony_animals(branch_index: int) -> list[str]:
+    for triad in ZODIAC_TRIADS:
+        if branch_index in triad:
+            peers = [EARTHLY_BRANCHES_KM[idx] for idx in triad if idx != branch_index]
+            return peers
+    return []
+
+
+def _clash_animal(branch_index: int) -> str:
+    return EARTHLY_BRANCHES_KM[(branch_index + 6) % 12]
+
+
+def _yearly_tai_sui(reference_year: int) -> tuple[str, str]:
+    year_branch_index = (reference_year - 4) % 12
+    tai_sui_direction = ANIMAL_MAIN_DIRECTIONS[year_branch_index]
+    sui_po_direction = ANIMAL_MAIN_DIRECTIONS[(year_branch_index + 6) % 12]
+    return tai_sui_direction, sui_po_direction
+
+
+def build_fengshui_snapshot(birth_info: str, *, reference_year: int | None = None) -> FengShuiSnapshot:
+    year_for_chart = reference_year or date.today().year
+    center_star = _annual_center_star(year_for_chart)
+    annual_layout = _annual_layout(center_star)
+    tai_sui_direction, sui_po_direction = _yearly_tai_sui(year_for_chart)
     year, _month, _day = extract_birth_parts(birth_info)
     if not year:
-        return FengShuiSnapshot()
+        return FengShuiSnapshot(
+            annual_center_star=center_star,
+            annual_star_layout=annual_layout,
+            annual_good_sectors=_sectors_for_stars(annual_layout, GOOD_STARS),
+            annual_caution_sectors=_sectors_for_stars(annual_layout, CAUTION_STARS),
+            tai_sui_direction=tai_sui_direction,
+            sui_po_direction=sui_po_direction,
+        )
 
     stem_index = (year - 4) % 10
     branch_index = (year - 4) % 12
     element = STEM_ELEMENT[stem_index]
     kua_male = _kua_number(year, is_male=True)
     kua_female = _kua_number(year, is_male=False)
+    caution_male = [d for d in ["ជើង", "ត្បូង", "កើត", "អាគ្នេយ៍", "លិច", "ពាយ័ព្យ", "និរតី", "ឦសាន"] if d not in KUA_DIRECTIONS.get(kua_male, [])]
+    caution_female = [d for d in ["ជើង", "ត្បូង", "កើត", "អាគ្នេយ៍", "លិច", "ពាយ័ព្យ", "និរតី", "ឦសាន"] if d not in KUA_DIRECTIONS.get(kua_female, [])]
 
     return FengShuiSnapshot(
         year=year,
@@ -124,5 +227,15 @@ def build_fengshui_snapshot(birth_info: str) -> FengShuiSnapshot:
         kua_female=kua_female,
         favorable_directions_male=KUA_DIRECTIONS.get(kua_male, []),
         favorable_directions_female=KUA_DIRECTIONS.get(kua_female, []),
+        caution_directions_male=caution_male,
+        caution_directions_female=caution_female,
         lucky_colors=ELEMENT_COLORS.get(element, []),
+        harmony_animals=_harmony_animals(branch_index),
+        clash_animal=_clash_animal(branch_index),
+        annual_center_star=center_star,
+        annual_star_layout=annual_layout,
+        annual_good_sectors=_sectors_for_stars(annual_layout, GOOD_STARS),
+        annual_caution_sectors=_sectors_for_stars(annual_layout, CAUTION_STARS),
+        tai_sui_direction=tai_sui_direction,
+        sui_po_direction=sui_po_direction,
     )

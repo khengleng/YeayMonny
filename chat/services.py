@@ -83,8 +83,26 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         feng_lines.append(f"- ទិសល្អក្វាប្រុស៖ {', '.join(feng.favorable_directions_male)}")
     if feng.favorable_directions_female:
         feng_lines.append(f"- ទិសល្អក្វាស្រី៖ {', '.join(feng.favorable_directions_female)}")
+    if feng.caution_directions_male:
+        feng_lines.append(f"- ទិសត្រូវប្រយ័ត្នក្វាប្រុស៖ {', '.join(feng.caution_directions_male)}")
+    if feng.caution_directions_female:
+        feng_lines.append(f"- ទិសត្រូវប្រយ័ត្នក្វាស្រី៖ {', '.join(feng.caution_directions_female)}")
     if feng.lucky_colors:
         feng_lines.append(f"- ពណ៌សមធាតុ៖ {', '.join(feng.lucky_colors)}")
+    if feng.harmony_animals:
+        feng_lines.append(f"- ឆ្នាំដែលសមគ្នា៖ {', '.join(feng.harmony_animals)}")
+    if feng.clash_animal:
+        feng_lines.append(f"- ឆ្នាំត្រូវប្រយ័ត្នប៉ះទង្គិច៖ {feng.clash_animal}")
+    if feng.annual_center_star:
+        feng_lines.append(f"- Flying Star ប្រចាំឆ្នាំ (កណ្ដាល)៖ {feng.annual_center_star}")
+    if feng.annual_good_sectors:
+        feng_lines.append(f"- ទិសល្អប្រចាំឆ្នាំ៖ {', '.join(feng.annual_good_sectors)}")
+    if feng.annual_caution_sectors:
+        feng_lines.append(f"- ទិសត្រូវប្រយ័ត្នប្រចាំឆ្នាំ៖ {', '.join(feng.annual_caution_sectors)}")
+    if feng.tai_sui_direction:
+        feng_lines.append(f"- ទិសតៃសួយឆ្នាំនេះ៖ {feng.tai_sui_direction}")
+    if feng.sui_po_direction:
+        feng_lines.append(f"- ទិសប៉ះតៃសួយ (Sui Po)៖ {feng.sui_po_direction}")
     feng_block = "\n".join(feng_lines) if feng_lines else "- មិនទាន់គណនា WOFS បាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
     return (
@@ -100,7 +118,8 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
         "- កុំឆ្លើយទូទៅពេក បើមានប្រវត្តិរួចហើយ\n"
-        "- ត្រូវហៅអ្នកប្រើថា 'ចៅ' ជានិច្ច"
+        "- ត្រូវហៅអ្នកប្រើថា 'ចៅ' ជានិច្ច\n"
+        "- កុំអះអាងថាជាលទ្ធផលផ្លូវការ ឬ ១០០% ត្រឹមត្រូវ; ប្រើជាការណែនាំទូទៅ"
     )
 
 

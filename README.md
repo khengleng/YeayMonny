@@ -26,7 +26,13 @@ Production-ready Django chat app for a Khmer fortune teller persona.
   - derives Chinese zodiac animal
   - derives Western sign when date is available
   - derives life-path number
-  - derives WOFS-style Feng Shui cues (Kua number, favorable directions, element colors)
+  - derives WOFS-style Feng Shui cues:
+    - Kua number (male/female)
+    - favorable + caution directions
+    - element colors
+    - zodiac harmony/conflict hints
+    - annual Flying Star center + sector highlights
+    - Tai Sui and Sui Po yearly direction hints
   - injects these into OpenAI prompt context before each reply
 - Admin panel to inspect conversations/messages
 - Safe guidance style (non-diagnostic, non-guaranteed outcomes)

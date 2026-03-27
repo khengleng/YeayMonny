@@ -10,6 +10,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from openai import OpenAIError
 
+from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 
@@ -300,6 +301,9 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("លេខផ្លូវជីវិត", profile_block)
         self.assertIn("WOFS", profile_block)
         self.assertIn("លេខក្វា", profile_block)
+        self.assertIn("Flying Star ប្រចាំឆ្នាំ", profile_block)
+        self.assertIn("ទិសល្អប្រចាំឆ្នាំ", profile_block)
+
 
     def test_service_rewrites_non_khmer_reply(self) -> None:
         config = AssistantConfig.get_solo()
@@ -372,6 +376,25 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("កូនសម្លាញ់ យាយសូមណែនាំឱ្យដោះស្រាយការងារម្តងមួយជំហាន ដោយរក្សាចិត្តឱ្យត្រជាក់។", reply)
         self.assertIn("ចៅ", reply)
         self.assertEqual(mock_client.responses.create.call_count, 2)
+
+
+class FengShuiEngineTests(TestCase):
+    def test_build_snapshot_includes_wofs_style_signals(self) -> None:
+        snapshot = build_fengshui_snapshot("12-05-1998", reference_year=2026)
+        self.assertEqual(snapshot.kua_male, 2)
+        self.assertEqual(snapshot.kua_female, 4)
+        self.assertEqual(snapshot.annual_center_star, 1)
+        assert snapshot.annual_star_layout is not None
+        self.assertEqual(snapshot.annual_star_layout["មជ្ឈមណ្ឌល"], 1)
+        self.assertTrue(snapshot.annual_good_sectors)
+        self.assertTrue(snapshot.annual_caution_sectors)
+
+    def test_build_snapshot_without_birth_still_has_annual_chart(self) -> None:
+        snapshot = build_fengshui_snapshot("", reference_year=2026)
+        self.assertIsNone(snapshot.year)
+        self.assertEqual(snapshot.annual_center_star, 1)
+        self.assertTrue(snapshot.annual_star_layout)
+        self.assertTrue(snapshot.tai_sui_direction)
 
 
 @override_settings(
