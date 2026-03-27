@@ -408,6 +408,64 @@ class TelegramWebhookTests(TestCase):
         self.assertEqual(Message.objects.filter(conversation__session_key="tg_88").count(), 2)
         mock_send.assert_called_once()
 
+    @patch("chat.views.send_telegram_message")
+    @patch("chat.views.get_yeay_monny_reply", return_value="យាយបានទទួលសម្លេងហើយ")
+    @patch("chat.views.transcribe_audio_bytes", return_value="")
+    @patch("chat.views.fetch_telegram_file", return_value=(b"audio", "audio/ogg", "voice.ogg"))
+    def test_telegram_webhook_voice_without_transcript_still_accepted(
+        self,
+        _mock_fetch,
+        _mock_transcribe,
+        _mock_reply,
+        mock_send,
+    ) -> None:
+        payload = {
+            "message": {
+                "chat": {"id": 99},
+                "voice": {"file_id": "v2"},
+            }
+        }
+        response = self.client.post(
+            reverse("chat:telegram_webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="secret-token",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Message.objects.filter(conversation__session_key="tg_99").count(), 2)
+        user_message = Message.objects.filter(conversation__session_key="tg_99", role=Message.Role.USER).first()
+        assert user_message is not None
+        self.assertIn("បានផ្ញើសម្លេង", user_message.content)
+        mock_send.assert_called_once()
+
+    @patch("chat.views.send_telegram_message")
+    @patch("chat.views.get_yeay_monny_reply", return_value="យាយឆ្លើយពីរូបភាពឯកសារ")
+    @patch("chat.views.analyze_image_bytes", return_value="យាយឃើញរូបជាវត្ថុពណ៌ក្រហម")
+    @patch("chat.views.fetch_telegram_file", return_value=(b"img", "image/png", "photo.png"))
+    def test_telegram_webhook_supports_image_document(
+        self,
+        _mock_fetch,
+        _mock_analyze,
+        _mock_reply,
+        mock_send,
+    ) -> None:
+        payload = {
+            "message": {
+                "chat": {"id": 100},
+                "caption": "សូមមើលរូបឯកសារ",
+                "document": {"file_id": "doc1", "mime_type": "image/png"},
+            }
+        }
+        response = self.client.post(
+            reverse("chat:telegram_webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="secret-token",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Message.objects.filter(conversation__session_key="tg_100").count(), 2)
+        mock_send.assert_called_once()
+
 
 class TelegramPathNormalizationTests(TestCase):
     def test_webhook_path_normalized(self) -> None:

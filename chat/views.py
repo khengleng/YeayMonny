@@ -44,6 +44,33 @@ def _build_multimodal_user_content(
     return "\n\n".join(blocks).strip()
 
 
+def _build_telegram_multimodal_user_content(
+    *,
+    text: str,
+    caption: str,
+    audio_transcript: str,
+    image_summary: str,
+    has_voice: bool,
+    has_image: bool,
+) -> str:
+    blocks: list[str] = []
+    base_text = text or caption
+    if base_text:
+        blocks.append(f"សំណួររបស់អ្នកប្រើ៖ {base_text}")
+
+    if audio_transcript:
+        blocks.append(f"អត្ថបទបានបម្លែងពីសម្លេង៖ {audio_transcript}")
+    elif has_voice:
+        blocks.append("អ្នកប្រើបានផ្ញើសម្លេង ប៉ុន្តែប្រព័ន្ធស្តាប់មិនទាន់ច្បាស់។")
+
+    if image_summary:
+        blocks.append(f"ការពិពណ៌នារូបភាពសម្រាប់មើលជោគជាតា៖ {image_summary}")
+    elif has_image:
+        blocks.append("អ្នកប្រើបានផ្ញើរូបភាព ប៉ុន្តែប្រព័ន្ធមើលមិនទាន់ច្បាស់។")
+
+    return "\n\n".join(blocks).strip()
+
+
 class OperatorLoginView(LoginView):
     template_name = "chat/operator_login.html"
     redirect_authenticated_user = True
@@ -372,6 +399,8 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     caption = (message.get("caption") or "").strip()
     voice_info = message.get("voice")
     audio_info = message.get("audio")
+    video_note_info = message.get("video_note")
+    document_info = message.get("document") or {}
     photo_list = message.get("photo") or []
 
     if not chat_id:
@@ -379,6 +408,8 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
 
     audio_transcript = ""
     image_summary = ""
+    has_voice = bool(voice_info or audio_info or video_note_info)
+    has_image = bool(photo_list)
 
     if voice_info and voice_info.get("file_id"):
         fetched = fetch_telegram_file(voice_info["file_id"])
@@ -387,6 +418,11 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
             audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
     elif audio_info and audio_info.get("file_id"):
         fetched = fetch_telegram_file(audio_info["file_id"])
+        if fetched:
+            content, _content_type, filename = fetched
+            audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
+    elif video_note_info and video_note_info.get("file_id"):
+        fetched = fetch_telegram_file(video_note_info["file_id"])
         if fetched:
             content, _content_type, filename = fetched
             audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
@@ -403,11 +439,25 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
                     image_bytes=content,
                     user_text=text or caption,
                 )
+    elif document_info.get("file_id") and str(document_info.get("mime_type", "")).startswith("image/"):
+        has_image = True
+        fetched = fetch_telegram_file(document_info["file_id"])
+        if fetched:
+            content, content_type, filename = fetched
+            image_summary = analyze_image_bytes(
+                filename=filename,
+                content_type=content_type,
+                image_bytes=content,
+                user_text=text or caption,
+            )
 
-    combined_user_content = _build_multimodal_user_content(
-        user_text=text or caption,
+    combined_user_content = _build_telegram_multimodal_user_content(
+        text=text,
+        caption=caption,
         audio_transcript=audio_transcript,
         image_summary=image_summary,
+        has_voice=has_voice,
+        has_image=has_image,
     )
 
     if not combined_user_content:

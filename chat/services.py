@@ -59,16 +59,23 @@ def transcribe_audio_bytes(*, filename: str, audio_bytes: bytes) -> str:
     if not settings.OPENAI_API_KEY or not audio_bytes:
         return ""
 
-    model_name = settings.OPENAI_TRANSCRIBE_MODEL
     client = _build_openai_client()
     audio_file = io.BytesIO(audio_bytes)
     audio_file.name = filename or "voice.ogg"
-    try:
-        transcript = client.audio.transcriptions.create(
-            model=model_name,
-            file=audio_file,
-        )
-    except OpenAIError:
+    model_candidates = [settings.OPENAI_TRANSCRIBE_MODEL, "whisper-1"]
+    transcript = None
+    for model_name in model_candidates:
+        try:
+            audio_file.seek(0)
+            transcript = client.audio.transcriptions.create(
+                model=model_name,
+                file=audio_file,
+            )
+            break
+        except OpenAIError:
+            transcript = None
+            continue
+    if transcript is None:
         return ""
 
     text = (getattr(transcript, "text", "") or "").strip()
