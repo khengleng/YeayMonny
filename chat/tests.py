@@ -7,9 +7,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from openai import OpenAIError
 
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
-from .services import get_yeay_monny_reply
+from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 
 
 class ChatViewTests(TestCase):
@@ -201,19 +202,51 @@ class AssistantConfigServiceTests(TestCase):
         config.save()
 
         mock_client = MagicMock()
-        mock_client.responses.create.return_value = SimpleNamespace(output_text="test reply")
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="នេះជាចម្លើយតេស្ត")
 
         history = [Message(role=Message.Role.USER, content="hello")]
 
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history)
 
-        self.assertEqual(reply, "test reply")
+        self.assertEqual(reply, "នេះជាចម្លើយតេស្ត")
         mock_client.responses.create.assert_called_once()
         kwargs = mock_client.responses.create.call_args.kwargs
         self.assertEqual(kwargs["model"], "gpt-4.1")
         self.assertEqual(kwargs["temperature"], 0.2)
         self.assertEqual(kwargs["input"][0]["content"], "custom system prompt")
+
+    def test_service_rewrites_non_khmer_reply(self) -> None:
+        config = AssistantConfig.get_solo()
+        config.model_name = "gpt-4.1"
+        config.temperature = 0.5
+        config.save()
+
+        mock_client = MagicMock()
+        mock_client.responses.create.side_effect = [
+            SimpleNamespace(output_text="This is English output."),
+            SimpleNamespace(output_text="នេះជាចម្លើយជាភាសាខ្មែរ។"),
+        ]
+
+        history = [Message(role=Message.Role.USER, content="test")]
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history)
+
+        self.assertEqual(reply, "នេះជាចម្លើយជាភាសាខ្មែរ។")
+        self.assertEqual(mock_client.responses.create.call_count, 2)
+
+    def test_service_returns_khmer_fallback_when_rewrite_fails(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.side_effect = [
+            SimpleNamespace(output_text="Hello in English"),
+            OpenAIError("rewrite failed"),
+        ]
+
+        history = [Message(role=Message.Role.USER, content="test")]
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history)
+
+        self.assertEqual(reply, KHMER_ONLY_FALLBACK)
 
 
 @override_settings(

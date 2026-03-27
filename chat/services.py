@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Iterable
 
 from django.conf import settings
@@ -9,12 +10,51 @@ from openai import OpenAIError
 from .models import AssistantConfig, Message
 from .prompts import SYSTEM_PROMPT
 
+KHMER_GUARD_PROMPT = """
+ច្បាប់ភាសាខ្លាំង
+- ត្រូវឆ្លើយតែជាភាសាខ្មែរ ប៉ុណ្ណោះ
+- កុំប្រើអក្សរឡាតាំង (A-Z, a-z) ក្នុងចម្លើយ
+- កុំប្រើប្រយោគភាសាអង់គ្លេស
+- ប្រើពាក្យសាមញ្ញ ងាយយល់
+"""
+KHMER_ONLY_FALLBACK = "កូនអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
+
 
 def _build_messages(history: Iterable[Message], system_prompt: str) -> list[dict[str, str]]:
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
+    ]
     for item in history:
         messages.append({"role": item.role, "content": item.content})
     return messages
+
+
+def _looks_non_khmer(text: str) -> bool:
+    latin_count = len(re.findall(r"[A-Za-z]", text))
+    khmer_count = len(re.findall(r"[\u1780-\u17FF]", text))
+    if khmer_count == 0:
+        return True
+    return latin_count > 4
+
+
+def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str:
+    response = client.responses.create(
+        model=model_name,
+        temperature=0.2,
+        input=[
+            {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
+            {
+                "role": "user",
+                "content": (
+                    "សូមកែសម្រួលអត្ថបទខាងក្រោមឱ្យនៅតែអត្ថន័យដើម "
+                    "ហើយឆ្លើយតែជាភាសាខ្មែរងាយៗ:\n\n"
+                    f"{text}"
+                ),
+            },
+        ],
+    )
+    return (response.output_text or "").strip()
 
 
 def get_yeay_monny_reply(history: Iterable[Message]) -> str:
@@ -37,6 +77,15 @@ def get_yeay_monny_reply(history: Iterable[Message]) -> str:
         return "កូនអើយ យាយសូមទោស។ ឥឡូវនេះប្រព័ន្ធរវល់បន្តិច សូមសួរម្តងទៀតបន្តិចក្រោយ។"
 
     text = (response.output_text or "").strip()
+    if text and _looks_non_khmer(text):
+        try:
+            rewritten = _rewrite_to_khmer_only(client=client, model_name=model_name, text=text)
+            if rewritten and not _looks_non_khmer(rewritten):
+                return rewritten
+        except OpenAIError:
+            return KHMER_ONLY_FALLBACK
+        return KHMER_ONLY_FALLBACK
+
     if text:
         return text
     return "យាយសូមអភ័យទោស កូនអើយ។ យាយមិនទាន់អាចឆ្លើយបានច្បាស់ទេ សូមសួរម្តងទៀត។"
