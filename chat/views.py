@@ -1,3 +1,4 @@
+import csv
 import json
 from datetime import timedelta
 
@@ -181,6 +182,12 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         20,
     ).get_page(request.GET.get("message_page"))
     since_24h = timezone.now() - timedelta(hours=24)
+    contacts_qs = Conversation.objects.filter(marketing_opt_in=True).exclude(
+        contact_email="",
+        contact_phone="",
+        telegram_username="",
+    )
+    recent_contacts = contacts_qs.order_by("-updated_at")[:30]
 
     return {
         "history_entries": history_entries,
@@ -193,6 +200,8 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         "openai_ready": bool(settings.OPENAI_API_KEY),
         "telegram_ready": bool(settings.TELEGRAM_BOT_TOKEN),
         "telegram_webhook_path": settings.TELEGRAM_WEBHOOK_PATH,
+        "opted_in_contacts": contacts_qs.count(),
+        "recent_contacts": recent_contacts,
     }
 
 
@@ -212,6 +221,9 @@ def chat_home(request: HttpRequest) -> HttpResponse:
             name = (request.POST.get("name") or "").strip()
             birth_info = (request.POST.get("birth_info") or "").strip()
             question_focus = (request.POST.get("question_focus") or "").strip()
+            contact_email = (request.POST.get("contact_email") or "").strip()
+            contact_phone = (request.POST.get("contact_phone") or "").strip()
+            marketing_opt_in = request.POST.get("marketing_opt_in") == "on"
 
             if name:
                 conversation.name = name
@@ -219,7 +231,23 @@ def chat_home(request: HttpRequest) -> HttpResponse:
                 conversation.birth_info = birth_info
             if question_focus:
                 conversation.question_focus = question_focus
-            conversation.save(update_fields=["name", "birth_info", "question_focus", "updated_at"])
+            if contact_email:
+                conversation.contact_email = contact_email
+            if contact_phone:
+                conversation.contact_phone = contact_phone
+            conversation.apply_marketing_opt_in(marketing_opt_in)
+            conversation.save(
+                update_fields=[
+                    "name",
+                    "birth_info",
+                    "question_focus",
+                    "contact_email",
+                    "contact_phone",
+                    "marketing_opt_in",
+                    "marketing_opt_in_at",
+                    "updated_at",
+                ]
+            )
 
             if voice_file:
                 if _is_valid_upload_size(voice_file, settings.MAX_AUDIO_UPLOAD_MB):
@@ -375,6 +403,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
             config.enable_vehicle_numerology_engine = history_item.enable_vehicle_numerology_engine
             config.enable_house_numerology_engine = history_item.enable_house_numerology_engine
             config.enable_compatibility_engine = history_item.enable_compatibility_engine
+            config.enable_financial_advisory_engine = history_item.enable_financial_advisory_engine
             config.compatibility_score_threshold = history_item.compatibility_score_threshold
             config.engine_operator_note = history_item.engine_operator_note
             config.updated_by = request.user.get_username()
@@ -533,6 +562,10 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
         if full_name:
             conversation.name = full_name
             conversation.save(update_fields=["name", "updated_at"])
+    username = (from_user.get("username") or "").strip()
+    if username and not conversation.telegram_username:
+        conversation.telegram_username = f"@{username}"
+        conversation.save(update_fields=["telegram_username", "updated_at"])
 
     Message.objects.create(
         conversation=conversation,
@@ -551,3 +584,50 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     send_telegram_message(chat_id, assistant_text)
 
     return JsonResponse({"ok": True})
+
+
+@login_required(login_url="chat:operator_login")
+@require_http_methods(["GET"])
+def operator_export_contacts_csv(request: HttpRequest) -> HttpResponse:
+    if not _can_manage_advanced_settings(request.user):
+        return _operator_forbidden(request)
+
+    rows = (
+        Conversation.objects.filter(marketing_opt_in=True)
+        .exclude(contact_email="", contact_phone="", telegram_username="")
+        .order_by("-updated_at")
+    )
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="yeaymonny_contacts.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "session_key",
+            "name",
+            "birth_info",
+            "question_focus",
+            "contact_email",
+            "contact_phone",
+            "telegram_username",
+            "marketing_opt_in",
+            "marketing_opt_in_at",
+            "updated_at",
+        ]
+    )
+    for convo in rows:
+        writer.writerow(
+            [
+                convo.session_key,
+                convo.name,
+                convo.birth_info,
+                convo.question_focus,
+                convo.contact_email,
+                convo.contact_phone,
+                convo.telegram_username,
+                "yes" if convo.marketing_opt_in else "no",
+                convo.marketing_opt_in_at.isoformat() if convo.marketing_opt_in_at else "",
+                convo.updated_at.isoformat(),
+            ]
+        )
+    return response

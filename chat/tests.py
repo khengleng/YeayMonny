@@ -47,6 +47,25 @@ class ChatViewTests(TestCase):
         self.assertEqual(conversation.birth_info, "2000")
         self.assertEqual(conversation.question_focus, "ការងារ")
 
+    @patch("chat.views.get_yeay_monny_reply", return_value="ចម្លើយ")
+    def test_post_saves_contact_and_marketing_opt_in(self, _mock_reply) -> None:
+        self.client.post(
+            reverse("chat:home"),
+            {
+                "name": "ស្រីពៅ",
+                "contact_email": "test@example.com",
+                "contact_phone": "012345678",
+                "marketing_opt_in": "on",
+                "message": "ជួយមើល",
+            },
+        )
+        convo = Conversation.objects.first()
+        assert convo is not None
+        self.assertEqual(convo.contact_email, "test@example.com")
+        self.assertEqual(convo.contact_phone, "012345678")
+        self.assertTrue(convo.marketing_opt_in)
+        self.assertIsNotNone(convo.marketing_opt_in_at)
+
     @patch("chat.views.get_yeay_monny_reply", return_value="នេះជាចម្លើយពីយាយ")
     @patch("chat.views.analyze_image_bytes", return_value="យាយមើលឃើញរូបមនុស្សនៅកន្លែងការងារ")
     @patch("chat.views.transcribe_audio_bytes", return_value="ខ្ញុំចង់សួររឿងការងារ")
@@ -219,6 +238,20 @@ class OperatorPortalTests(TestCase):
         response = self.client.get(reverse("chat:operator_dashboard"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ផ្ទាំងប្រតិបត្តិការ")
+        self.assertContains(response, "ទិន្នន័យផ្សព្វផ្សាយ")
+
+    def test_admin_can_export_contacts_csv(self) -> None:
+        Conversation.objects.create(
+            session_key="abc",
+            name="User",
+            contact_email="user@example.com",
+            marketing_opt_in=True,
+        )
+        self.client.login(username="admin", password="testpass123")
+        response = self.client.get(reverse("chat:operator_export_contacts_csv"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("user@example.com", response.content.decode("utf-8"))
 
     def test_operator_can_open_conversation_detail(self) -> None:
         conversation = Conversation.objects.create(session_key="abc123", name="Test User")
@@ -338,6 +371,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("ផ្លាកលេខរថយន្ត", profile_block)
         self.assertIn("លេខផ្ទះ", profile_block)
         self.assertIn("Compatibility Engine", profile_block)
+        self.assertIn("Financial Advisory Engine", profile_block)
 
     def test_service_profile_context_respects_engine_toggles(self) -> None:
         config = AssistantConfig.get_solo()
@@ -357,6 +391,7 @@ class AssistantConfigServiceTests(TestCase):
         profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
         self.assertIn("ម៉ាស៊ីន Feng Shui ត្រូវបានបិទ", profile_block)
         self.assertIn("ម៉ាស៊ីនលេខផ្លាករថយន្តត្រូវបានបិទ", profile_block)
+        self.assertIn("ម៉ាស៊ីនភាពត្រូវគ្នាស្នេហាត្រូវបានបិទ", profile_block)
         self.assertIn("ឆ្លើយអោយទន់ភ្លន់", profile_block)
 
 

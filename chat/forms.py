@@ -61,6 +61,7 @@ class AssistantEngineSettingsForm(forms.ModelForm):
             "enable_vehicle_numerology_engine",
             "enable_house_numerology_engine",
             "enable_compatibility_engine",
+            "enable_financial_advisory_engine",
             "compatibility_score_threshold",
             "engine_operator_note",
         ]
@@ -75,6 +76,7 @@ class AssistantEngineSettingsForm(forms.ModelForm):
             "enable_vehicle_numerology_engine": "បើក/បិទម៉ាស៊ីនលេខផ្លាករថយន្ត",
             "enable_house_numerology_engine": "បើក/បិទម៉ាស៊ីនលេខផ្ទះ",
             "enable_compatibility_engine": "បើក/បិទម៉ាស៊ីនភាពត្រូវគ្នាស្នេហា",
+            "enable_financial_advisory_engine": "បើក/បិទម៉ាស៊ីនណែនាំហិរញ្ញវត្ថុ",
             "compatibility_score_threshold": "កម្រិតពិន្ទុភាពត្រូវគ្នា (0-100)",
             "engine_operator_note": "កំណត់ចំណាំប្រតិបត្តិការ (បន្ថែមទៅបរិបទម៉ាស៊ីន)",
         }

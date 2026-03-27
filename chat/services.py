@@ -13,6 +13,7 @@ from openai import OpenAIError
 from .astrology import build_astrology_snapshot
 from .compatibility import build_compatibility_snapshot
 from .face_reading import build_face_reading_engine_notes
+from .financial_advisory import build_financial_advisory_snapshot
 from .fengshui import build_fengshui_snapshot
 from .house_numerology import build_house_numerology_snapshot
 from .models import AssistantConfig, Message
@@ -85,6 +86,15 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
             latest_user_text=latest_user_text,
         )
         if config.enable_compatibility_engine
+        else None
+    )
+    finance = (
+        build_financial_advisory_snapshot(
+            question_focus=question_focus,
+            latest_user_text=latest_user_text,
+            life_path_number=snapshot.life_path_number,
+        )
+        if config.enable_financial_advisory_engine
         else None
     )
 
@@ -203,6 +213,20 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
     else:
         comp_block = "\n".join(comp_lines) if comp_lines else "- មិនទាន់មានទិន្នន័យគូស្នេហ៍សម្រាប់គណនា"
 
+    finance_lines = []
+    if finance and finance.focus_area:
+        finance_lines.append(f"- ផ្នែកហិរញ្ញវត្ថុចម្បង៖ {finance.focus_area}")
+    if finance and finance.risk_level:
+        finance_lines.append(f"- កម្រិតហានិភ័យ៖ {finance.risk_level}")
+    if finance and finance.actions:
+        finance_lines.append(f"- ជំហានណែនាំ៖ {' | '.join(finance.actions)}")
+    if finance and finance.caution:
+        finance_lines.append(f"- ចំណាំ៖ {finance.caution}")
+    if not config.enable_financial_advisory_engine:
+        finance_block = "- ម៉ាស៊ីនណែនាំហិរញ្ញវត្ថុត្រូវបានបិទដោយ Operator"
+    else:
+        finance_block = "\n".join(finance_lines) if finance_lines else "- មិនទាន់មានទិន្នន័យហិរញ្ញវត្ថុគ្រប់គ្រាន់"
+
     operator_note = (config.engine_operator_note or "").strip()
     operator_block = operator_note or "- គ្មាន"
 
@@ -221,6 +245,8 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
         f"{house_block}\n\n"
         "លទ្ធផលគណនាភាពត្រូវគ្នាស្នេហា (Compatibility Engine)\n"
         f"{comp_block}\n\n"
+        "លទ្ធផលណែនាំហិរញ្ញវត្ថុ (Financial Advisory Engine)\n"
+        f"{finance_block}\n\n"
         "កំណត់ចំណាំប្រតិបត្តិការ (Operator)\n"
         f"{operator_block}\n\n"
         "ច្បាប់បន្ថែម\n"

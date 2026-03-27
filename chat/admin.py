@@ -16,11 +16,23 @@ class ConversationAdmin(admin.ModelAdmin):
         "id",
         "session_key",
         "name",
+        "contact_email",
+        "contact_phone",
+        "marketing_opt_in",
         "question_focus",
         "created_at",
         "updated_at",
     )
-    search_fields = ("id", "session_key", "name", "birth_info", "question_focus")
+    search_fields = (
+        "id",
+        "session_key",
+        "name",
+        "birth_info",
+        "question_focus",
+        "contact_email",
+        "contact_phone",
+        "telegram_username",
+    )
     readonly_fields = ("id", "created_at", "updated_at")
     inlines = [MessageInline]
 
@@ -42,6 +54,7 @@ class AssistantConfigAdmin(admin.ModelAdmin):
         "enable_fengshui_engine",
         "enable_face_reading_engine",
         "enable_palm_reading_engine",
+        "enable_financial_advisory_engine",
         "updated_at",
         "updated_by",
     )
@@ -67,6 +80,7 @@ class AssistantConfigHistoryAdmin(admin.ModelAdmin):
         "enable_vehicle_numerology_engine",
         "enable_house_numerology_engine",
         "enable_compatibility_engine",
+        "enable_financial_advisory_engine",
         "compatibility_score_threshold",
         "engine_operator_note",
         "changed_by",

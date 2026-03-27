@@ -48,6 +48,17 @@
             </label>
           </div>
 
+          <div class="grid">
+            <label>
+              អ៊ីមែល (ជម្រើស)
+              <input type="email" name="contact_email" value="{{ conversation.contact_email }}" placeholder="you@example.com" />
+            </label>
+            <label>
+              លេខទូរស័ព្ទ (ជម្រើស)
+              <input type="text" name="contact_phone" value="{{ conversation.contact_phone }}" placeholder="ឧ. 012345678" />
+            </label>
+          </div>
+
           <label>
             ចង់មើលរឿងអ្វី? (ជម្រើស)
             <input
@@ -77,6 +88,11 @@
               <input type="file" name="voice" accept="audio/*" />
             </label>
           </div>
+
+          <label style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" name="marketing_opt_in" {% if conversation.marketing_opt_in %}checked{% endif %} />
+            ខ្ញុំយល់ព្រមទទួលព័ត៌មានថ្មីៗ និងសារផ្សព្វផ្សាយពីយាយមុន្នី
+          </label>
 
           <button type="submit">សួរយាយមុន្នី</button>
         </form>

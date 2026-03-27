@@ -82,11 +82,48 @@
               <span>សារក្នុង 24 ម៉ោងចុងក្រោយ</span>
             </div>
             <div class="stat">
+              <b>{{ opted_in_contacts }}</b>
+              <span>អ្នកប្រើយល់ព្រមទទួលព័ត៌មាន</span>
+            </div>
+            <div class="stat">
               <span>OpenAI: {% if openai_ready %}<span class="ok">រួចរាល់</span>{% else %}<span class="bad">មិនទាន់កំណត់</span>{% endif %}</span><br />
               <span>Telegram: {% if telegram_ready %}<span class="ok">រួចរាល់</span>{% else %}<span class="bad">មិនទាន់កំណត់</span>{% endif %}</span><br />
               <span class="muted">ផ្លូវ Webhook: {{ telegram_webhook_path }}</span>
             </div>
           </div>
+        </div>
+
+        <div class="section">
+          <h2>ទិន្នន័យផ្សព្វផ្សាយ (Broadcast)</h2>
+          {% if can_manage_advanced %}
+            <a class="btn" href="{% url 'chat:operator_export_contacts_csv' %}">ទាញយក CSV អ្នកប្រើ</a>
+          {% endif %}
+          {% if recent_contacts %}
+            <table>
+              <thead>
+                <tr>
+                  <th>ឈ្មោះ</th>
+                  <th>អ៊ីមែល</th>
+                  <th>ទូរស័ព្ទ</th>
+                  <th>Telegram</th>
+                  <th>ពេលយល់ព្រម</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in recent_contacts %}
+                  <tr>
+                    <td>{{ c.name|default:"-" }}</td>
+                    <td>{{ c.contact_email|default:"-" }}</td>
+                    <td>{{ c.contact_phone|default:"-" }}</td>
+                    <td>{{ c.telegram_username|default:"-" }}</td>
+                    <td>{% if c.marketing_opt_in_at %}{{ c.marketing_opt_in_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <div class="empty">មិនទាន់មានអ្នកប្រើយល់ព្រមទទួលព័ត៌មានទេ។</div>
+          {% endif %}
         </div>
 
         <div class="section">
@@ -140,6 +177,7 @@
               <label class="check-item">{{ engine_form.enable_vehicle_numerology_engine }} {{ engine_form.enable_vehicle_numerology_engine.label }}</label>
               <label class="check-item">{{ engine_form.enable_house_numerology_engine }} {{ engine_form.enable_house_numerology_engine.label }}</label>
               <label class="check-item">{{ engine_form.enable_compatibility_engine }} {{ engine_form.enable_compatibility_engine.label }}</label>
+              <label class="check-item">{{ engine_form.enable_financial_advisory_engine }} {{ engine_form.enable_financial_advisory_engine.label }}</label>
 
               <label for="id_compatibility_score_threshold">{{ engine_form.compatibility_score_threshold.label }}</label>
               {{ engine_form.compatibility_score_threshold }}

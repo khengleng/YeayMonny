@@ -17,6 +17,10 @@ Production-ready Django chat app for a Khmer fortune teller persona.
 - Uses the exact Khmer system prompt from `prompt.md`
 - Chat history persisted in database
 - Session-based conversation tracking
+- User profile capture for outreach:
+  - optional email, phone, Telegram username
+  - explicit marketing opt-in flag + timestamp
+  - operator CSV export for broadcast campaigns
 - Multimodal input:
   - web users can upload voice and images
   - Telegram users can send voice and photos
@@ -37,6 +41,9 @@ Production-ready Django chat app for a Khmer fortune teller persona.
     - estimates love compatibility score from user+partner birth cues
     - blends zodiac, life-path, and sign-group signals
     - adds stage-aware guidance (dating/married/breakup/reconnect intent)
+  - financial advisory engine:
+    - gives simple money-planning guidance from user context
+    - includes risk level + practical action steps
 - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal

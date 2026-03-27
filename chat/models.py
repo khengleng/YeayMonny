@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 from .prompts import SYSTEM_PROMPT
 
@@ -11,6 +12,11 @@ class Conversation(models.Model):
     name = models.CharField(max_length=255, blank=True)
     birth_info = models.CharField(max_length=255, blank=True)
     question_focus = models.CharField(max_length=255, blank=True)
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=40, blank=True)
+    telegram_username = models.CharField(max_length=255, blank=True)
+    marketing_opt_in = models.BooleanField(default=False)
+    marketing_opt_in_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -19,6 +25,13 @@ class Conversation(models.Model):
 
     def __str__(self) -> str:
         return f"Conversation {self.id}"
+
+    def apply_marketing_opt_in(self, opted_in: bool) -> None:
+        self.marketing_opt_in = opted_in
+        if opted_in and not self.marketing_opt_in_at:
+            self.marketing_opt_in_at = timezone.now()
+        if not opted_in:
+            self.marketing_opt_in_at = None
 
 
 class Message(models.Model):
@@ -52,6 +65,7 @@ class AssistantConfig(models.Model):
     enable_vehicle_numerology_engine = models.BooleanField(default=True)
     enable_house_numerology_engine = models.BooleanField(default=True)
     enable_compatibility_engine = models.BooleanField(default=True)
+    enable_financial_advisory_engine = models.BooleanField(default=True)
     compatibility_score_threshold = models.PositiveSmallIntegerField(default=58)
     engine_operator_note = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -79,6 +93,7 @@ class AssistantConfig(models.Model):
                 "enable_vehicle_numerology_engine": True,
                 "enable_house_numerology_engine": True,
                 "enable_compatibility_engine": True,
+                "enable_financial_advisory_engine": True,
                 "compatibility_score_threshold": 58,
                 "engine_operator_note": "",
             },
@@ -109,6 +124,7 @@ class AssistantConfigHistory(models.Model):
     enable_vehicle_numerology_engine = models.BooleanField(default=True)
     enable_house_numerology_engine = models.BooleanField(default=True)
     enable_compatibility_engine = models.BooleanField(default=True)
+    enable_financial_advisory_engine = models.BooleanField(default=True)
     compatibility_score_threshold = models.PositiveSmallIntegerField(default=58)
     engine_operator_note = models.TextField(blank=True)
     changed_by = models.CharField(max_length=150, blank=True)
@@ -142,6 +158,7 @@ class AssistantConfigHistory(models.Model):
             enable_vehicle_numerology_engine=config.enable_vehicle_numerology_engine,
             enable_house_numerology_engine=config.enable_house_numerology_engine,
             enable_compatibility_engine=config.enable_compatibility_engine,
+            enable_financial_advisory_engine=config.enable_financial_advisory_engine,
             compatibility_score_threshold=config.compatibility_score_threshold,
             engine_operator_note=config.engine_operator_note,
             changed_by=changed_by,
