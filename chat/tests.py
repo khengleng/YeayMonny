@@ -10,6 +10,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from openai import OpenAIError
 
+from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
@@ -398,6 +399,22 @@ class FengShuiEngineTests(TestCase):
         self.assertEqual(snapshot.annual_center_star, 1)
         self.assertTrue(snapshot.annual_star_layout)
         self.assertTrue(snapshot.tai_sui_direction)
+
+
+class FaceReadingEngineTests(TestCase):
+    def test_face_engine_adds_zone_based_notes(self) -> None:
+        text = "រូបមុខនេះមានថ្ងាសទូលាយ ភ្នែកភ្លឺ ច្រមុះត្រង់ មាត់សមស្រប និងចង្កាមូល។"
+        notes = build_face_reading_engine_notes(text)
+        self.assertIn("ថ្ងាស", notes)
+        self.assertIn("ភ្នែក", notes)
+        self.assertIn("ច្រមុះ", notes)
+        self.assertIn("មាត់", notes)
+        self.assertIn("ចង្កា", notes)
+
+    def test_face_engine_ignores_non_face_context(self) -> None:
+        text = "រូបនេះជាទេសភាពភ្នំ និងមេឃ មិនឃើញមុខមនុស្ស។"
+        notes = build_face_reading_engine_notes(text)
+        self.assertEqual(notes, "")
 
 
 @override_settings(

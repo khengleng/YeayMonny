@@ -11,6 +11,7 @@ from openai import OpenAI
 from openai import OpenAIError
 
 from .astrology import build_astrology_snapshot
+from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, Message
 from .prompts import SYSTEM_PROMPT
@@ -206,7 +207,8 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
         "- កុំប្រើពាក្យពិបាក\n"
         "- កុំបំភ័យ\n"
         "- កុំសន្យាលទ្ធផលដាច់ខាត\n"
-        "- និយាយតែការណែនាំទូទៅ"
+        "- និយាយតែការណែនាំទូទៅ\n"
+        "- បើជារូបមុខ សូមពិពណ៌នាចំណុច៖ ថ្ងាស ភ្នែក ច្រមុះ មាត់ ចង្កា ត្រចៀក ឱ្យច្បាស់"
     )
     if user_text:
         prompt += f"\n\nបរិបទសំណួររបស់អ្នកប្រើ៖ {user_text}"
@@ -240,7 +242,11 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
     except OpenAIError:
         return ""
 
-    return (response.output_text or "").strip()
+    text = (response.output_text or "").strip()
+    face_notes = build_face_reading_engine_notes(text)
+    if face_notes:
+        return f"{text}\n\n{face_notes}".strip()
+    return text
 
 
 def _looks_non_khmer(text: str) -> bool:
