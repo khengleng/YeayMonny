@@ -17,6 +17,9 @@ ALLOWED_HOSTS = [
 if railway_domain := os.getenv("RAILWAY_PUBLIC_DOMAIN"):
     ALLOWED_HOSTS.append(railway_domain)
 
+if railway_private_domain := os.getenv("RAILWAY_PRIVATE_DOMAIN"):
+    ALLOWED_HOSTS.append(railway_private_domain)
+
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
