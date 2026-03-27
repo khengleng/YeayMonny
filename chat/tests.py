@@ -18,6 +18,7 @@ from .palm_reading import build_palm_reading_engine_notes
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
 from .vehicle_numerology import build_vehicle_numerology_snapshot
 from .compatibility import build_compatibility_snapshot
+from .financial_advisory import build_financial_advisory_snapshot
 
 
 class ChatViewTests(TestCase):
@@ -569,6 +570,20 @@ class CompatibilityEngineTests(TestCase):
         )
         self.assertIsNone(snap.partner_year)
         self.assertIsNone(snap.score)
+
+
+class FinancialAdvisoryEngineTests(TestCase):
+    def test_financial_engine_includes_goal_loan_deposit_bond_advice(self) -> None:
+        snap = build_financial_advisory_snapshot(
+            question_focus="ចង់ពង្រីក business និងវិនិយោគ",
+            latest_user_text="ខ្ញុំមាន goal ចង់សន្សំទិញផ្ទះ តើគួរខ្ចីទុនទេ",
+            life_path_number=4,
+        )
+        joined = " | ".join(snap.actions or [])
+        self.assertIn("goal saving", joined)
+        self.assertIn("loan", joined)
+        self.assertIn("high-interest deposit", joined)
+        self.assertIn("bond", joined)
 
 
 @override_settings(

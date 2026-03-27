@@ -31,6 +31,10 @@ def build_financial_advisory_snapshot(
     actions: list[str] = []
     caution = "កុំវិនិយោគតាមអារម្មណ៍ ត្រូវមានផែនការច្បាស់។"
 
+    has_goal = _contains(text, ["goal", "គោលដៅ", "ចង់ទិញ", "ចង់សន្សំ", "ផ្ទះ", "ឡាន", "រៀបការ"])
+    business_expand = _contains(text, ["ពង្រីក", "expand", "បន្ថែមទុន", "បើកសាខា", "business growth"])
+    asks_invest = _contains(text, ["វិនិយោគ", "invest", "ទុកប្រាក់", "បង្កើនប្រាក់"])
+
     if _contains(text, ["បំណុល", "debt", "loan", "ខ្ចី"]):
         focus_area = "រៀបចំបំណុល"
         risk_level = "ខ្ពស់"
@@ -73,6 +77,14 @@ def build_financial_advisory_snapshot(
             "ពិនិត្យគោលដៅលុយរៀងរាល់ខែ",
         ]
 
+    if has_goal:
+        actions.append("បើចៅមានគោលដៅច្បាស់ សូមសន្សំជាផែនការ (goal saving) ដកមុនចំណាយរៀងរាល់ខែ")
+    if business_expand:
+        actions.append("បើចង់ពង្រីកអាជីវកម្ម អាចពិចារណាខ្ចីទុន (loan) តែត្រូវគណនាសមត្ថភាពសង និងលំហូរសាច់ប្រាក់មុន")
+    if asks_invest or business_expand:
+        actions.append("សម្រាប់ប្រាក់សុវត្ថិភាព អាចដាក់បញ្ញើការប្រាក់ខ្ពស់ (high-interest deposit) ជាស្រទាប់មូលដ្ឋាន")
+        actions.append("សម្រាប់វិនិយោគរយៈមធ្យម/វែង អាចពិចារណាទិញប័ណ្ណបំណុល (bond) ដើម្បីបន្ថយការវ៉ុលាទីលីតេ")
+
     if life_path_number in {4, 8}:
         actions.append("លេខផ្លូវជីវិតបង្ហាញថាត្រូវប្រើវិន័យខ្ពស់ និងគោរពផែនការលុយឱ្យតឹង")
     elif life_path_number in {3, 5}:
@@ -84,4 +96,3 @@ def build_financial_advisory_snapshot(
         actions=actions,
         caution=caution,
     )
-
