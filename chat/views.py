@@ -33,6 +33,15 @@ TEXT_PREFERRED_NOTE = (
     "សូមសរសេរជាអក្សរមកយាយម្ដងទៀត។ "
     "អក្សរងាយឱ្យយាយមើលបានច្បាស់ជាងសម្លេង។"
 )
+ENGINE_CHECKLIST = [
+    ("Feng Shui (WOFS-style)", "enable_fengshui_engine", "WOFS tools style (Kua, Flying Star, Tai Sui)"),
+    ("Face Reading", "enable_face_reading_engine", "Lok Tin face-reading structure"),
+    ("Palm Reading", "enable_palm_reading_engine", "Allure hand-line framework"),
+    ("Vehicle Numerology", "enable_vehicle_numerology_engine", "Nehaa-style root-number approach"),
+    ("House Numerology", "enable_house_numerology_engine", "Arviend Sud moving-number method"),
+    ("Love Compatibility", "enable_compatibility_engine", "Astromix-style compatibility flow"),
+    ("Financial Advisory", "enable_financial_advisory_engine", "Goal-plan + risk-aware advisory"),
+]
 
 
 def _is_valid_upload_size(file_obj, max_mb: int) -> bool:
@@ -188,6 +197,14 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         telegram_username="",
     )
     recent_contacts = contacts_qs.order_by("-updated_at")[:30]
+    engine_checklist = [
+        {
+            "name": name,
+            "enabled": bool(getattr(config, field_name)),
+            "source": source,
+        }
+        for name, field_name, source in ENGINE_CHECKLIST
+    ]
 
     return {
         "history_entries": history_entries,
@@ -202,6 +219,7 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         "telegram_webhook_path": settings.TELEGRAM_WEBHOOK_PATH,
         "opted_in_contacts": contacts_qs.count(),
         "recent_contacts": recent_contacts,
+        "engine_checklist": engine_checklist,
     }
 
 

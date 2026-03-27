@@ -195,6 +195,29 @@
         </div>
 
         <div class="section">
+          <h2>Engine Checklist</h2>
+          <p class="muted">តារាងនេះសម្រាប់ពិនិត្យថាម៉ាស៊ីនណាដំណើរការ និងយោងតាមប្រភពតក្កវិជ្ជាអ្វី។</p>
+          <table>
+            <thead>
+              <tr>
+                <th>ម៉ាស៊ីន</th>
+                <th>ស្ថានភាព</th>
+                <th>យោងតក្កវិជ្ជា</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for engine in engine_checklist %}
+                <tr>
+                  <td>{{ engine.name }}</td>
+                  <td>{% if engine.enabled %}<span class="ok">ON</span>{% else %}<span class="bad">OFF</span>{% endif %}</td>
+                  <td>{{ engine.source }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
           <h2>ប្រវត្តិកំណែ និងការត្រឡប់កំណែ</h2>
           <p class="muted">បង្ហាញកំណែថ្មីៗ 10 ចុងក្រោយក្នុងមួយទំព័រ។</p>
           {% if history_entries %}

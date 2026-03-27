@@ -242,6 +242,7 @@ class OperatorPortalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ផ្ទាំងប្រតិបត្តិការ")
         self.assertContains(response, "ទិន្នន័យផ្សព្វផ្សាយ")
+        self.assertContains(response, "Engine Checklist")
 
     def test_admin_can_export_contacts_csv(self) -> None:
         Conversation.objects.create(
