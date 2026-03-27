@@ -128,3 +128,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 OPENAI_TIMEOUT_SECONDS = int(os.getenv("OPENAI_TIMEOUT_SECONDS", "45"))
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
+TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+TELEGRAM_TIMEOUT_SECONDS = int(os.getenv("TELEGRAM_TIMEOUT_SECONDS", "15"))
+
+telegram_webhook_path = os.getenv("TELEGRAM_WEBHOOK_PATH", "/webhooks/telegram/").strip()
+if not telegram_webhook_path.startswith("/"):
+    telegram_webhook_path = f"/{telegram_webhook_path}"
+if not telegram_webhook_path.endswith("/"):
+    telegram_webhook_path = f"{telegram_webhook_path}/"
+TELEGRAM_WEBHOOK_PATH = telegram_webhook_path

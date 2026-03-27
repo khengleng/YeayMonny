@@ -1,9 +1,14 @@
-from django.http import HttpRequest, HttpResponse
+import json
+
+from django.conf import settings
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import Conversation, Message
 from .services import get_yeay_monny_reply
+from .telegram import send_telegram_message
 
 FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ មកអង្គុយសិន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
 
@@ -23,6 +28,14 @@ def _get_or_create_conversation(request: HttpRequest) -> Conversation:
     conversation = Conversation.objects.create(session_key=session_key)
     request.session["conversation_id"] = str(conversation.id)
     return conversation
+
+
+def _get_or_create_telegram_conversation(chat_id: int | str) -> Conversation:
+    session_key = f"tg_{chat_id}"
+    conversation = Conversation.objects.filter(session_key=session_key).first()
+    if conversation:
+        return conversation
+    return Conversation.objects.create(session_key=session_key)
 
 
 @require_http_methods(["GET", "POST"])
@@ -78,3 +91,54 @@ def chat_home(request: HttpRequest) -> HttpResponse:
             "messages": messages,
         },
     )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidden:
+    if not settings.TELEGRAM_BOT_TOKEN:
+        return JsonResponse({"ok": False, "error": "telegram bot token is not configured"}, status=503)
+
+    if settings.TELEGRAM_WEBHOOK_SECRET:
+        given_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if given_secret != settings.TELEGRAM_WEBHOOK_SECRET:
+            return HttpResponseForbidden("Invalid Telegram webhook secret")
+
+    try:
+        update = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+
+    message = update.get("message") or update.get("edited_message")
+    if not message:
+        return JsonResponse({"ok": True})
+
+    chat = message.get("chat") or {}
+    chat_id = chat.get("id")
+    text = (message.get("text") or "").strip()
+
+    if not chat_id:
+        return JsonResponse({"ok": True})
+
+    if not text:
+        send_telegram_message(chat_id, "កូនអើយ សូមផ្ញើសារជាអក្សរមកយាយ។")
+        return JsonResponse({"ok": True})
+
+    conversation = _get_or_create_telegram_conversation(chat_id)
+    Message.objects.create(
+        conversation=conversation,
+        role=Message.Role.USER,
+        content=text,
+    )
+
+    history = conversation.messages.all()
+    assistant_text = get_yeay_monny_reply(history)
+
+    Message.objects.create(
+        conversation=conversation,
+        role=Message.Role.ASSISTANT,
+        content=assistant_text,
+    )
+    send_telegram_message(chat_id, assistant_text)
+
+    return JsonResponse({"ok": True})

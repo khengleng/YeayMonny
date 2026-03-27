@@ -93,6 +93,25 @@ python manage.py createsuperuser
 
 - `/` chat interface
 - `/admin/` Django admin
+- `/webhooks/telegram/` Telegram webhook endpoint
+
+## Telegram setup
+
+1. Add environment variables:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_WEBHOOK_SECRET`
+   - `TELEGRAM_WEBHOOK_PATH=/webhooks/telegram/`
+2. Deploy app.
+3. Register webhook:
+
+```bash
+TOKEN="<your-telegram-bot-token>"
+BASE_URL="https://<your-railway-domain>"
+SECRET="<your-telegram-webhook-secret>"
+
+curl "https://api.telegram.org/bot${TOKEN}/setWebhook?url=${BASE_URL}/webhooks/telegram/&secret_token=${SECRET}"
+curl "https://api.telegram.org/bot${TOKEN}/getWebhookInfo"
+```
 
 ## Run with Docker (local desktop)
 
