@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import difflib
 import io
 import re
 from typing import Iterable
@@ -36,6 +37,14 @@ IDENTITY_CONTEXT_GUARD_PROMPT = """
 - អ្នកកំពុងជជែកតាម chat មិនមែនជួបផ្ទាល់
 - កុំណែនាំឱ្យអ្នកប្រើមកជួបផ្ទាល់ ឬមកទីតាំងណាមួយ
 """
+HIGH_EQ_GUARD_PROMPT = """
+សម្លេងមនុស្ស និង EQ ខ្ពស់
+- ស្ដាប់អារម្មណ៍អ្នកសួរ មុនផ្តល់ដំបូន្មាន
+- ប្រើពាក្យលួងលោម យល់ចិត្ត មិនរឹងពេក
+- ឆ្លើយឱ្យមានអារម្មណ៍ថាយាយកំពុងគិតសមនឹងស្ថានភាពពិតរបស់គាត់
+- កុំឆ្លើយបែបម៉ាស៊ីន ឬជាបញ្ជីដដែលៗ
+- បើអ្នកប្រើបារម្ភ ឬតានតឹង ត្រូវដាក់ពាក្យបន្ថយសម្ពាធជាមុន
+"""
 KHMER_ONLY_FALLBACK = "កូនអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 
 
@@ -45,6 +54,7 @@ def _build_messages(history: Iterable[Message], system_prompt: str) -> list[dict
         {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
         {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
+        {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
     ]
     for item in history:
         messages.append({"role": item.role, "content": item.content})
@@ -126,6 +136,10 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
                     "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip(),
                 },
                 {
+                    "role": "system",
+                    "content": HIGH_EQ_GUARD_PROMPT.strip(),
+                },
+                {
                     "role": "user",
                     "content": [
                         {"type": "input_text", "text": prompt},
@@ -156,6 +170,7 @@ def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str
         input=[
             {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
             {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
+            {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
             {
                 "role": "user",
                 "content": (
@@ -169,18 +184,50 @@ def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str
     return (response.output_text or "").strip()
 
 
+def _normalize_for_similarity(text: str) -> str:
+    compact = re.sub(r"\s+", " ", text).strip().lower()
+    compact = re.sub(r"[^\u1780-\u17FFA-Za-z0-9 ]+", "", compact)
+    return compact
+
+
+def _token_set(text: str) -> set[str]:
+    normalized = _normalize_for_similarity(text)
+    if not normalized:
+        return set()
+    return {tok for tok in normalized.split(" ") if tok}
+
+
+def _jaccard_similarity(a: str, b: str) -> float:
+    sa = _token_set(a)
+    sb = _token_set(b)
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
+
+
 def _looks_repetitive_against_history(text: str, history: Iterable[Message]) -> bool:
-    candidate = " ".join(text.split()).strip()
+    candidate = _normalize_for_similarity(text)
     if not candidate:
         return True
 
     assistant_texts = [
-        " ".join(item.content.split()).strip()
+        _normalize_for_similarity(item.content)
         for item in history
         if item.role == Message.Role.ASSISTANT and item.content
     ]
     recent = assistant_texts[-5:]
-    return candidate in recent
+    if candidate in recent:
+        return True
+
+    for prior in recent:
+        if not prior:
+            continue
+        ratio = difflib.SequenceMatcher(None, candidate, prior).ratio()
+        if ratio >= 0.86:
+            return True
+        if _jaccard_similarity(candidate, prior) >= 0.75:
+            return True
+    return False
 
 
 def _rewrite_to_fresh_style(*, client: OpenAI, model_name: str, text: str, history: Iterable[Message]) -> str:
@@ -198,10 +245,12 @@ def _rewrite_to_fresh_style(*, client: OpenAI, model_name: str, text: str, histo
             {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
             {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
             {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
+            {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
             {
                 "role": "user",
                 "content": (
                     "សូមសរសេរចម្លើយនេះឡើងវិញឱ្យថ្មី មិនស្ទួននឹងចម្លើយចាស់ៗ។ "
+                    "ត្រូវឱ្យសម្លេងមានមនុស្សធម៌ និងយល់ចិត្តខ្ពស់។ "
                     "រក្សាអត្ថន័យដើម និងភាសាខ្មែរងាយៗ។\n\n"
                     f"ចម្លើយបច្ចុប្បន្ន:\n{text}\n\n"
                     f"ចម្លើយចាស់ៗថ្មីៗ:\n{recent_block}"
