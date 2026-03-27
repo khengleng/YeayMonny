@@ -22,6 +22,11 @@ from .services import analyze_image_bytes, get_yeay_monny_reply, transcribe_audi
 from .telegram import fetch_telegram_file, send_telegram_message
 
 FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ សរសេរមកយាយបាន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
+TEXT_PREFERRED_NOTE = (
+    "កូនអើយ យាយស្តាប់សម្លេងមិនទាន់ច្បាស់ទេ។ "
+    "សូមសរសេរជាអក្សរមកយាយម្ដងទៀត។ "
+    "អក្សរងាយឱ្យយាយមើលបានច្បាស់ជាងសម្លេង។"
+)
 
 
 def _is_valid_upload_size(file_obj, max_mb: int) -> bool:
@@ -209,6 +214,9 @@ def chat_home(request: HttpRequest) -> HttpResponse:
                         filename=voice_file.name,
                         audio_bytes=voice_file.read(),
                     )
+                    if not audio_transcript and not user_text:
+                        messages.error(request, TEXT_PREFERRED_NOTE)
+                        return redirect("chat:home")
                 else:
                     messages.error(request, "ឯកសារសម្លេងធំពេក។ សូមបញ្ចូលឯកសារតូចជាងកំណត់។")
 
@@ -248,9 +256,9 @@ def chat_home(request: HttpRequest) -> HttpResponse:
 
         return redirect("chat:home")
 
-    messages = list(conversation.messages.all())
-    if not messages:
-        messages = [
+    chat_messages = list(conversation.messages.all())
+    if not chat_messages:
+        chat_messages = [
             Message(
                 role=Message.Role.ASSISTANT,
                 content=FIRST_MESSAGE,
@@ -262,7 +270,7 @@ def chat_home(request: HttpRequest) -> HttpResponse:
         "chat/home.html",
         {
             "conversation": conversation,
-            "chat_messages": messages,
+            "chat_messages": chat_messages,
         },
     )
 
@@ -459,6 +467,10 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
         has_voice=has_voice,
         has_image=has_image,
     )
+
+    if has_voice and not audio_transcript and not (text or caption):
+        send_telegram_message(chat_id, TEXT_PREFERRED_NOTE)
+        return JsonResponse({"ok": True})
 
     if not combined_user_content:
         send_telegram_message(chat_id, "កូនអើយ សូមផ្ញើសារជាអក្សរ សម្លេង ឬរូបភាពមកយាយ។")

@@ -69,6 +69,21 @@ class ChatViewTests(TestCase):
         self.assertIn("អត្ថបទបានបម្លែងពីសម្លេង", user_message.content)
         self.assertIn("ការពិពណ៌នារូបភាពសម្រាប់មើលជោគជាតា", user_message.content)
 
+    @patch("chat.views.transcribe_audio_bytes", return_value="")
+    def test_web_voice_unclear_asks_for_text(self, _mock_transcribe) -> None:
+        voice = SimpleUploadedFile("voice.ogg", b"fake-voice-bytes", content_type="audio/ogg")
+        response = self.client.post(
+            reverse("chat:home"),
+            {
+                "message": "",
+                "voice": voice,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "អក្សរងាយឱ្យយាយមើលបានច្បាស់ជាងសម្លេង")
+        self.assertEqual(Message.objects.count(), 0)
+
 
 class OperatorPortalTests(TestCase):
     def setUp(self) -> None:
@@ -412,7 +427,7 @@ class TelegramWebhookTests(TestCase):
     @patch("chat.views.get_yeay_monny_reply", return_value="យាយបានទទួលសម្លេងហើយ")
     @patch("chat.views.transcribe_audio_bytes", return_value="")
     @patch("chat.views.fetch_telegram_file", return_value=(b"audio", "audio/ogg", "voice.ogg"))
-    def test_telegram_webhook_voice_without_transcript_still_accepted(
+    def test_telegram_webhook_unclear_voice_with_text_still_accepted(
         self,
         _mock_fetch,
         _mock_transcribe,
@@ -422,6 +437,7 @@ class TelegramWebhookTests(TestCase):
         payload = {
             "message": {
                 "chat": {"id": 99},
+                "text": "សួររឿងស្នេហា",
                 "voice": {"file_id": "v2"},
             }
         }
@@ -435,8 +451,36 @@ class TelegramWebhookTests(TestCase):
         self.assertEqual(Message.objects.filter(conversation__session_key="tg_99").count(), 2)
         user_message = Message.objects.filter(conversation__session_key="tg_99", role=Message.Role.USER).first()
         assert user_message is not None
+        self.assertIn("សំណួររបស់អ្នកប្រើ", user_message.content)
         self.assertIn("បានផ្ញើសម្លេង", user_message.content)
         mock_send.assert_called_once()
+
+    @patch("chat.views.send_telegram_message")
+    @patch("chat.views.transcribe_audio_bytes", return_value="")
+    @patch("chat.views.fetch_telegram_file", return_value=(b"audio", "audio/ogg", "voice.ogg"))
+    def test_telegram_unclear_voice_without_text_requests_text_message(
+        self,
+        _mock_fetch,
+        _mock_transcribe,
+        mock_send,
+    ) -> None:
+        payload = {
+            "message": {
+                "chat": {"id": 101},
+                "voice": {"file_id": "v3"},
+            }
+        }
+        response = self.client.post(
+            reverse("chat:telegram_webhook"),
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="secret-token",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Message.objects.filter(conversation__session_key="tg_101").count(), 0)
+        sent_text = mock_send.call_args.args[1]
+        self.assertIn("សូមសរសេរជាអក្សរ", sent_text)
+        self.assertIn("អក្សរងាយ", sent_text)
 
     @patch("chat.views.send_telegram_message")
     @patch("chat.views.get_yeay_monny_reply", return_value="យាយឆ្លើយពីរូបភាពឯកសារ")
