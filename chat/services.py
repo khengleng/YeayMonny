@@ -11,6 +11,7 @@ from openai import OpenAI
 from openai import OpenAIError
 
 from .astrology import build_astrology_snapshot
+from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, Message
 from .prompts import SYSTEM_PROMPT
 
@@ -56,6 +57,7 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
     birth_info = (profile.get("birth_info") or "").strip()
     question_focus = (profile.get("question_focus") or "").strip()
     snapshot = build_astrology_snapshot(birth_info)
+    feng = build_fengshui_snapshot(birth_info)
 
     astrology_lines = []
     if snapshot.year:
@@ -68,6 +70,23 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         astrology_lines.append(f"- លេខផ្លូវជីវិត៖ {snapshot.life_path_number}")
     astrology_block = "\n".join(astrology_lines) if astrology_lines else "- មិនទាន់គណនាបាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
+    feng_lines = []
+    if feng.stem_name and feng.branch_name:
+        feng_lines.append(f"- ឆ្នាំបែបចិន (ធាតុដើម)៖ {feng.stem_name}-{feng.branch_name}")
+    if feng.element:
+        feng_lines.append(f"- ធាតុឆ្នាំ៖ {feng.element}")
+    if feng.kua_male:
+        feng_lines.append(f"- លេខក្វាប្រុស (WOFS)៖ {feng.kua_male}")
+    if feng.kua_female:
+        feng_lines.append(f"- លេខក្វាស្រី (WOFS)៖ {feng.kua_female}")
+    if feng.favorable_directions_male:
+        feng_lines.append(f"- ទិសល្អក្វាប្រុស៖ {', '.join(feng.favorable_directions_male)}")
+    if feng.favorable_directions_female:
+        feng_lines.append(f"- ទិសល្អក្វាស្រី៖ {', '.join(feng.favorable_directions_female)}")
+    if feng.lucky_colors:
+        feng_lines.append(f"- ពណ៌សមធាតុ៖ {', '.join(feng.lucky_colors)}")
+    feng_block = "\n".join(feng_lines) if feng_lines else "- មិនទាន់គណនា WOFS បាន (ទិន្នន័យកំណើតមិនគ្រប់)"
+
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
         f"- ឈ្មោះ៖ {name or 'មិនទាន់ប្រាប់'}\n"
@@ -75,6 +94,8 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         f"- ប្រធានបទចម្បង៖ {question_focus or 'មិនទាន់ប្រាប់'}\n\n"
         "លទ្ធផលគណនាហោរាទូទៅពីទិន្នន័យកំណើត\n"
         f"{astrology_block}\n\n"
+        "លទ្ធផលគណនា Feng Shui (WOFS style)\n"
+        f"{feng_block}\n\n"
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
