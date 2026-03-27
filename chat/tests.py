@@ -303,6 +303,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("លេខក្វា", profile_block)
         self.assertIn("Flying Star ប្រចាំឆ្នាំ", profile_block)
         self.assertIn("ទិសល្អប្រចាំឆ្នាំ", profile_block)
+        self.assertIn("TravelChinaGuide style", profile_block)
 
 
     def test_service_rewrites_non_khmer_reply(self) -> None:
@@ -380,7 +381,7 @@ class AssistantConfigServiceTests(TestCase):
 
 class FengShuiEngineTests(TestCase):
     def test_build_snapshot_includes_wofs_style_signals(self) -> None:
-        snapshot = build_fengshui_snapshot("12-05-1998", reference_year=2026)
+        snapshot = build_fengshui_snapshot("12-05-1998", reference_year=2026, partner_birth_info="1994")
         self.assertEqual(snapshot.kua_male, 2)
         self.assertEqual(snapshot.kua_female, 4)
         self.assertEqual(snapshot.annual_center_star, 1)
@@ -388,6 +389,8 @@ class FengShuiEngineTests(TestCase):
         self.assertEqual(snapshot.annual_star_layout["មជ្ឈមណ្ឌល"], 1)
         self.assertTrue(snapshot.annual_good_sectors)
         self.assertTrue(snapshot.annual_caution_sectors)
+        self.assertEqual(snapshot.partner_animal, "ឆ្កែ")
+        self.assertIn("ចន្លោះ៤ឆ្នាំ", snapshot.partner_relation or "")
 
     def test_build_snapshot_without_birth_still_has_annual_chart(self) -> None:
         snapshot = build_fengshui_snapshot("", reference_year=2026)

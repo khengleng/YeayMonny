@@ -57,7 +57,7 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
     birth_info = (profile.get("birth_info") or "").strip()
     question_focus = (profile.get("question_focus") or "").strip()
     snapshot = build_astrology_snapshot(birth_info)
-    feng = build_fengshui_snapshot(birth_info)
+    feng = build_fengshui_snapshot(birth_info, partner_birth_info=question_focus)
 
     astrology_lines = []
     if snapshot.year:
@@ -103,6 +103,14 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         feng_lines.append(f"- ទិសតៃសួយឆ្នាំនេះ៖ {feng.tai_sui_direction}")
     if feng.sui_po_direction:
         feng_lines.append(f"- ទិសប៉ះតៃសួយ (Sui Po)៖ {feng.sui_po_direction}")
+    if feng.ben_ming_nian:
+        feng_lines.append("- ឆ្នាំនេះជាវដ្តដដែល (Ben Ming Nian)៖ ត្រូវធ្វើអ្វីៗស្ងប់ៗ និងប្រុងប្រយ័ត្នបន្ថែម")
+    if feng.four_apart_animals:
+        feng_lines.append(f"- ឆ្នាំសមតាមចន្លោះ៤ឆ្នាំ (TravelChinaGuide style)៖ {', '.join(feng.four_apart_animals)}")
+    if feng.three_apart_animals:
+        feng_lines.append(f"- ឆ្នាំងាយខ្វែងគំនិតតាមចន្លោះ៣ឆ្នាំ៖ {', '.join(feng.three_apart_animals)}")
+    if feng.partner_animal and feng.partner_relation:
+        feng_lines.append(f"- ទំនាក់ទំនងជាមួយឆ្នាំ {feng.partner_animal}៖ {feng.partner_relation}")
     feng_block = "\n".join(feng_lines) if feng_lines else "- មិនទាន់គណនា WOFS បាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
     return (

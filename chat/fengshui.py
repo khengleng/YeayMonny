@@ -124,6 +124,11 @@ class FengShuiSnapshot:
     annual_caution_sectors: list[str] | None = None
     tai_sui_direction: str | None = None
     sui_po_direction: str | None = None
+    ben_ming_nian: bool = False
+    four_apart_animals: list[str] | None = None
+    three_apart_animals: list[str] | None = None
+    partner_relation: str | None = None
+    partner_animal: str | None = None
 
 
 def _reduce_to_digit(n: int) -> int:
@@ -194,11 +199,28 @@ def _yearly_tai_sui(reference_year: int) -> tuple[str, str]:
     return tai_sui_direction, sui_po_direction
 
 
-def build_fengshui_snapshot(birth_info: str, *, reference_year: int | None = None) -> FengShuiSnapshot:
+def _relation_label(user_idx: int, partner_idx: int) -> str:
+    diff = (partner_idx - user_idx) % 12
+    if diff in {4, 8}:
+        return "សមគ្នាល្អ (ចន្លោះ៤ឆ្នាំ)"
+    if diff == 6:
+        return "ប៉ះទង្គិចខ្លាំង (ឆ្លង៦ឆ្នាំ)"
+    if diff in {3, 9}:
+        return "ងាយខ្វែងគំនិត (ឆ្លង៣ឆ្នាំ)"
+    return "មធ្យម ត្រូវសម្របសម្រួល"
+
+
+def build_fengshui_snapshot(
+    birth_info: str,
+    *,
+    reference_year: int | None = None,
+    partner_birth_info: str = "",
+) -> FengShuiSnapshot:
     year_for_chart = reference_year or date.today().year
     center_star = _annual_center_star(year_for_chart)
     annual_layout = _annual_layout(center_star)
     tai_sui_direction, sui_po_direction = _yearly_tai_sui(year_for_chart)
+    partner_year, _pm, _pd = extract_birth_parts(partner_birth_info)
     year, _month, _day = extract_birth_parts(birth_info)
     if not year:
         return FengShuiSnapshot(
@@ -215,8 +237,17 @@ def build_fengshui_snapshot(birth_info: str, *, reference_year: int | None = Non
     element = STEM_ELEMENT[stem_index]
     kua_male = _kua_number(year, is_male=True)
     kua_female = _kua_number(year, is_male=False)
-    caution_male = [d for d in ["ជើង", "ត្បូង", "កើត", "អាគ្នេយ៍", "លិច", "ពាយ័ព្យ", "និរតី", "ឦសាន"] if d not in KUA_DIRECTIONS.get(kua_male, [])]
-    caution_female = [d for d in ["ជើង", "ត្បូង", "កើត", "អាគ្នេយ៍", "លិច", "ពាយ័ព្យ", "និរតី", "ឦសាន"] if d not in KUA_DIRECTIONS.get(kua_female, [])]
+    all_dirs = ["ជើង", "ត្បូង", "កើត", "អាគ្នេយ៍", "លិច", "ពាយ័ព្យ", "និរតី", "ឦសាន"]
+    caution_male = [d for d in all_dirs if d not in KUA_DIRECTIONS.get(kua_male, [])]
+    caution_female = [d for d in all_dirs if d not in KUA_DIRECTIONS.get(kua_female, [])]
+    four_apart_animals = [EARTHLY_BRANCHES_KM[(branch_index + 4) % 12], EARTHLY_BRANCHES_KM[(branch_index + 8) % 12]]
+    three_apart_animals = [EARTHLY_BRANCHES_KM[(branch_index + 3) % 12], EARTHLY_BRANCHES_KM[(branch_index + 9) % 12]]
+    partner_relation = None
+    partner_animal = None
+    if partner_year:
+        partner_idx = (partner_year - 4) % 12
+        partner_animal = EARTHLY_BRANCHES_KM[partner_idx]
+        partner_relation = _relation_label(branch_index, partner_idx)
 
     return FengShuiSnapshot(
         year=year,
@@ -238,4 +269,9 @@ def build_fengshui_snapshot(birth_info: str, *, reference_year: int | None = Non
         annual_caution_sectors=_sectors_for_stars(annual_layout, CAUTION_STARS),
         tai_sui_direction=tai_sui_direction,
         sui_po_direction=sui_po_direction,
+        ben_ming_nian=((year_for_chart - year) % 12 == 0),
+        four_apart_animals=four_apart_animals,
+        three_apart_animals=three_apart_animals,
+        partner_relation=partner_relation,
+        partner_animal=partner_animal,
     )

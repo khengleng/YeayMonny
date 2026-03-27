@@ -33,6 +33,10 @@ Production-ready Django chat app for a Khmer fortune teller persona.
     - zodiac harmony/conflict hints
     - annual Flying Star center + sector highlights
     - Tai Sui and Sui Po yearly direction hints
+  - applies Chinese zodiac relation rules inspired by TravelChinaGuide:
+    - 4-year apart tendency (more harmonious)
+    - 6-year opposite sign caution
+    - 3-year apart tendency (more friction)
   - injects these into OpenAI prompt context before each reply
 - Admin panel to inspect conversations/messages
 - Safe guidance style (non-diagnostic, non-guaranteed outcomes)
