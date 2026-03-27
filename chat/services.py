@@ -56,23 +56,36 @@ HIGH_EQ_GUARD_PROMPT = """
 KHMER_ONLY_FALLBACK = "ចៅអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 
 
-def _build_profile_context(user_profile: dict[str, str] | None) -> str:
+def _build_profile_context(user_profile: dict[str, str] | None, config: AssistantConfig) -> str:
     profile = user_profile or {}
     name = (profile.get("name") or "").strip()
     birth_info = (profile.get("birth_info") or "").strip()
     question_focus = (profile.get("question_focus") or "").strip()
     latest_user_text = (profile.get("latest_user_text") or "").strip()
     snapshot = build_astrology_snapshot(birth_info)
-    feng = build_fengshui_snapshot(birth_info, partner_birth_info=question_focus)
-    vehicle = build_vehicle_numerology_snapshot(
-        f"{question_focus}\n{latest_user_text}",
-        life_path_number=snapshot.life_path_number,
+    engine_source_text = f"{question_focus}\n{latest_user_text}"
+    feng = (
+        build_fengshui_snapshot(birth_info, partner_birth_info=question_focus)
+        if config.enable_fengshui_engine
+        else None
     )
-    house = build_house_numerology_snapshot(f"{question_focus}\n{latest_user_text}")
-    compatibility = build_compatibility_snapshot(
-        user_birth_info=birth_info,
-        question_focus=question_focus,
-        latest_user_text=latest_user_text,
+    vehicle = (
+        build_vehicle_numerology_snapshot(
+            engine_source_text,
+            life_path_number=snapshot.life_path_number,
+        )
+        if config.enable_vehicle_numerology_engine
+        else None
+    )
+    house = build_house_numerology_snapshot(engine_source_text) if config.enable_house_numerology_engine else None
+    compatibility = (
+        build_compatibility_snapshot(
+            user_birth_info=birth_info,
+            question_focus=question_focus,
+            latest_user_text=latest_user_text,
+        )
+        if config.enable_compatibility_engine
+        else None
     )
 
     astrology_lines = []
@@ -87,96 +100,111 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
     astrology_block = "\n".join(astrology_lines) if astrology_lines else "- មិនទាន់គណនាបាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
     feng_lines = []
-    if feng.stem_name and feng.branch_name:
+    if feng and feng.stem_name and feng.branch_name:
         feng_lines.append(f"- ឆ្នាំបែបចិន (ធាតុដើម)៖ {feng.stem_name}-{feng.branch_name}")
-    if feng.element:
+    if feng and feng.element:
         feng_lines.append(f"- ធាតុឆ្នាំ៖ {feng.element}")
-    if feng.kua_male:
+    if feng and feng.kua_male:
         feng_lines.append(f"- លេខក្វាប្រុស (WOFS)៖ {feng.kua_male}")
-    if feng.kua_female:
+    if feng and feng.kua_female:
         feng_lines.append(f"- លេខក្វាស្រី (WOFS)៖ {feng.kua_female}")
-    if feng.favorable_directions_male:
+    if feng and feng.favorable_directions_male:
         feng_lines.append(f"- ទិសល្អក្វាប្រុស៖ {', '.join(feng.favorable_directions_male)}")
-    if feng.favorable_directions_female:
+    if feng and feng.favorable_directions_female:
         feng_lines.append(f"- ទិសល្អក្វាស្រី៖ {', '.join(feng.favorable_directions_female)}")
-    if feng.caution_directions_male:
+    if feng and feng.caution_directions_male:
         feng_lines.append(f"- ទិសត្រូវប្រយ័ត្នក្វាប្រុស៖ {', '.join(feng.caution_directions_male)}")
-    if feng.caution_directions_female:
+    if feng and feng.caution_directions_female:
         feng_lines.append(f"- ទិសត្រូវប្រយ័ត្នក្វាស្រី៖ {', '.join(feng.caution_directions_female)}")
-    if feng.lucky_colors:
+    if feng and feng.lucky_colors:
         feng_lines.append(f"- ពណ៌សមធាតុ៖ {', '.join(feng.lucky_colors)}")
-    if feng.harmony_animals:
+    if feng and feng.harmony_animals:
         feng_lines.append(f"- ឆ្នាំដែលសមគ្នា៖ {', '.join(feng.harmony_animals)}")
-    if feng.clash_animal:
+    if feng and feng.clash_animal:
         feng_lines.append(f"- ឆ្នាំត្រូវប្រយ័ត្នប៉ះទង្គិច៖ {feng.clash_animal}")
-    if feng.annual_center_star:
+    if feng and feng.annual_center_star:
         feng_lines.append(f"- Flying Star ប្រចាំឆ្នាំ (កណ្ដាល)៖ {feng.annual_center_star}")
-    if feng.annual_good_sectors:
+    if feng and feng.annual_good_sectors:
         feng_lines.append(f"- ទិសល្អប្រចាំឆ្នាំ៖ {', '.join(feng.annual_good_sectors)}")
-    if feng.annual_caution_sectors:
+    if feng and feng.annual_caution_sectors:
         feng_lines.append(f"- ទិសត្រូវប្រយ័ត្នប្រចាំឆ្នាំ៖ {', '.join(feng.annual_caution_sectors)}")
-    if feng.tai_sui_direction:
+    if feng and feng.tai_sui_direction:
         feng_lines.append(f"- ទិសតៃសួយឆ្នាំនេះ៖ {feng.tai_sui_direction}")
-    if feng.sui_po_direction:
+    if feng and feng.sui_po_direction:
         feng_lines.append(f"- ទិសប៉ះតៃសួយ (Sui Po)៖ {feng.sui_po_direction}")
-    if feng.ben_ming_nian:
+    if feng and feng.ben_ming_nian:
         feng_lines.append("- ឆ្នាំនេះជាវដ្តដដែល (Ben Ming Nian)៖ ត្រូវធ្វើអ្វីៗស្ងប់ៗ និងប្រុងប្រយ័ត្នបន្ថែម")
-    if feng.four_apart_animals:
+    if feng and feng.four_apart_animals:
         feng_lines.append(f"- ឆ្នាំសមតាមចន្លោះ៤ឆ្នាំ (TravelChinaGuide style)៖ {', '.join(feng.four_apart_animals)}")
-    if feng.three_apart_animals:
+    if feng and feng.three_apart_animals:
         feng_lines.append(f"- ឆ្នាំងាយខ្វែងគំនិតតាមចន្លោះ៣ឆ្នាំ៖ {', '.join(feng.three_apart_animals)}")
-    if feng.partner_animal and feng.partner_relation:
+    if feng and feng.partner_animal and feng.partner_relation:
         feng_lines.append(f"- ទំនាក់ទំនងជាមួយឆ្នាំ {feng.partner_animal}៖ {feng.partner_relation}")
-    feng_block = "\n".join(feng_lines) if feng_lines else "- មិនទាន់គណនា WOFS បាន (ទិន្នន័យកំណើតមិនគ្រប់)"
+    if not config.enable_fengshui_engine:
+        feng_block = "- ម៉ាស៊ីន Feng Shui ត្រូវបានបិទដោយ Operator"
+    else:
+        feng_block = "\n".join(feng_lines) if feng_lines else "- មិនទាន់គណនា WOFS បាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
     vehicle_lines = []
-    if vehicle.plate_raw:
+    if vehicle and vehicle.plate_raw:
         vehicle_lines.append(f"- ផ្លាកលេខរកឃើញ៖ {vehicle.plate_raw}")
-    if vehicle.total_value:
+    if vehicle and vehicle.total_value:
         vehicle_lines.append(f"- ផលបូកលេខសរុប៖ {vehicle.total_value}")
-    if vehicle.root_number:
+    if vehicle and vehicle.root_number:
         vehicle_lines.append(f"- លេខគោលរថយន្ត៖ {vehicle.root_number}")
-    if vehicle.meaning:
+    if vehicle and vehicle.meaning:
         vehicle_lines.append(f"- អត្ថន័យ៖ {vehicle.meaning}")
-    if vehicle.compatibility_hint:
+    if vehicle and vehicle.compatibility_hint:
         vehicle_lines.append(f"- ភាពសមគ្នា៖ {vehicle.compatibility_hint}")
-    vehicle_block = "\n".join(vehicle_lines) if vehicle_lines else "- មិនទាន់មានផ្លាកលេខសម្រាប់គណនា"
+    if not config.enable_vehicle_numerology_engine:
+        vehicle_block = "- ម៉ាស៊ីនលេខផ្លាករថយន្តត្រូវបានបិទដោយ Operator"
+    else:
+        vehicle_block = "\n".join(vehicle_lines) if vehicle_lines else "- មិនទាន់មានផ្លាកលេខសម្រាប់គណនា"
 
     house_lines = []
-    if house.raw_candidate:
+    if house and house.raw_candidate:
         house_lines.append(f"- លេខអាសយដ្ឋានរកឃើញ៖ {house.raw_candidate}")
-    if house.moving_part:
+    if house and house.moving_part:
         house_lines.append(f"- លេខប្រើគណនា (moving number)៖ {house.moving_part}")
-    if house.total_value:
+    if house and house.total_value:
         house_lines.append(f"- ផលបូកលេខសរុប៖ {house.total_value}")
-    if house.root_number:
+    if house and house.root_number:
         house_lines.append(f"- លេខគោលផ្ទះ៖ {house.root_number}")
-    if house.meaning:
+    if house and house.meaning:
         house_lines.append(f"- អត្ថន័យ៖ {house.meaning}")
-    if house.caution:
+    if house and house.caution:
         house_lines.append(f"- ចំណាំប្រុងប្រយ័ត្ន៖ {house.caution}")
-    house_block = "\n".join(house_lines) if house_lines else "- មិនទាន់មានលេខផ្ទះសម្រាប់គណនា"
+    if not config.enable_house_numerology_engine:
+        house_block = "- ម៉ាស៊ីនលេខផ្ទះត្រូវបានបិទដោយ Operator"
+    else:
+        house_block = "\n".join(house_lines) if house_lines else "- មិនទាន់មានលេខផ្ទះសម្រាប់គណនា"
 
     comp_lines = []
-    if compatibility.partner_birth_info:
+    if compatibility and compatibility.partner_birth_info:
         comp_lines.append(f"- ឆ្នាំ/ថ្ងៃកំណើតគូ (រកឃើញ)៖ {compatibility.partner_birth_info}")
-    if compatibility.partner_animal:
+    if compatibility and compatibility.partner_animal:
         comp_lines.append(f"- ឆ្នាំចិនគូស្នេហ៍៖ {compatibility.partner_animal}")
-    if compatibility.partner_western_sign:
+    if compatibility and compatibility.partner_western_sign:
         comp_lines.append(f"- សញ្ញាផ្កាយគូស្នេហ៍៖ {compatibility.partner_western_sign}")
-    if compatibility.relation_stage:
+    if compatibility and compatibility.relation_stage:
         comp_lines.append(f"- ស្ថានភាពទំនាក់ទំនង៖ {compatibility.relation_stage}")
-    if compatibility.intent:
+    if compatibility and compatibility.intent:
         comp_lines.append(f"- ចេតនាសំណួរ៖ {compatibility.intent}")
-    if compatibility.score is not None:
+    if compatibility and compatibility.score is not None:
         comp_lines.append(f"- ពិន្ទុភាពត្រូវគ្នា (០-១០០)៖ {compatibility.score}")
-    if compatibility.level:
+    if compatibility and compatibility.level:
         comp_lines.append(f"- កម្រិតសរុប៖ {compatibility.level}")
-    if compatibility.key_notes:
+    if compatibility and compatibility.key_notes:
         comp_lines.append(f"- ចំណុចសំខាន់៖ {' | '.join(compatibility.key_notes)}")
-    if compatibility.guidance:
+    if compatibility and compatibility.guidance:
         comp_lines.append(f"- ដំបូន្មាន៖ {compatibility.guidance}")
-    comp_block = "\n".join(comp_lines) if comp_lines else "- មិនទាន់មានទិន្នន័យគូស្នេហ៍សម្រាប់គណនា"
+    if not config.enable_compatibility_engine:
+        comp_block = "- ម៉ាស៊ីនភាពត្រូវគ្នាស្នេហាត្រូវបានបិទដោយ Operator"
+    else:
+        comp_block = "\n".join(comp_lines) if comp_lines else "- មិនទាន់មានទិន្នន័យគូស្នេហ៍សម្រាប់គណនា"
+
+    operator_note = (config.engine_operator_note or "").strip()
+    operator_block = operator_note or "- គ្មាន"
 
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
@@ -193,11 +221,14 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         f"{house_block}\n\n"
         "លទ្ធផលគណនាភាពត្រូវគ្នាស្នេហា (Compatibility Engine)\n"
         f"{comp_block}\n\n"
+        "កំណត់ចំណាំប្រតិបត្តិការ (Operator)\n"
+        f"{operator_block}\n\n"
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
         "- កុំឆ្លើយទូទៅពេក បើមានប្រវត្តិរួចហើយ\n"
         "- ត្រូវហៅអ្នកប្រើថា 'ចៅ' ជានិច្ច\n"
+        f"- កម្រិតពិន្ទុភាពត្រូវគ្នា ({config.compatibility_score_threshold}) ជាតម្លៃយោងបកស្រាយ មិនមែនការកំណត់ដាច់ខាត\n"
         "- កុំអះអាងថាជាលទ្ធផលផ្លូវការ ឬ ១០០% ត្រឹមត្រូវ; ប្រើជាការណែនាំទូទៅ"
     )
 
@@ -206,7 +237,9 @@ def _build_messages(
     history: Iterable[Message],
     system_prompt: str,
     user_profile: dict[str, str] | None = None,
+    config: AssistantConfig | None = None,
 ) -> list[dict[str, str]]:
+    active_config = config or AssistantConfig.get_solo()
     history_list = list(history)
     latest_user_text = ""
     for item in reversed(history_list):
@@ -219,7 +252,7 @@ def _build_messages(
     }
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "system", "content": _build_profile_context(profile_with_latest)},
+        {"role": "system", "content": _build_profile_context(profile_with_latest, active_config)},
         {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
         {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
@@ -266,6 +299,7 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
         return ""
 
     model_name = settings.OPENAI_VISION_MODEL
+    config = AssistantConfig.get_solo()
     mime = content_type or "image/jpeg"
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     image_url = f"data:{mime};base64,{b64}"
@@ -292,6 +326,10 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
         "- និយាយតែការណែនាំទូទៅ\n"
         "- បើជារូបមុខ សូមពិពណ៌នាចំណុច៖ ថ្ងាស ភ្នែក ច្រមុះ មាត់ ចង្កា ត្រចៀក ឱ្យច្បាស់"
     )
+    if not config.enable_face_reading_engine:
+        prompt += "\n- មិនត្រូវផ្តោតការមើលមុខជាលម្អិត (feature នេះបិទដោយ operator)"
+    if not config.enable_palm_reading_engine:
+        prompt += "\n- មិនត្រូវផ្តោតការមើលបាតដៃជាលម្អិត (feature នេះបិទដោយ operator)"
     if user_text:
         prompt += f"\n\nបរិបទសំណួររបស់អ្នកប្រើ៖ {user_text}"
 
@@ -325,8 +363,8 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
         return ""
 
     text = (response.output_text or "").strip()
-    face_notes = build_face_reading_engine_notes(text)
-    palm_notes = build_palm_reading_engine_notes(text)
+    face_notes = build_face_reading_engine_notes(text) if config.enable_face_reading_engine else ""
+    palm_notes = build_palm_reading_engine_notes(text) if config.enable_palm_reading_engine else ""
     if face_notes:
         text = f"{text}\n\n{face_notes}".strip()
     if palm_notes:
@@ -476,7 +514,7 @@ def get_yeay_monny_reply(
     try:
         response = client.responses.create(
             model=model_name,
-            input=_build_messages(history, system_prompt, user_profile),
+            input=_build_messages(history, system_prompt, user_profile, config=config),
             temperature=temperature,
         )
     except OpenAIError:

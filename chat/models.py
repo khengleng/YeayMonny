@@ -46,6 +46,14 @@ class AssistantConfig(models.Model):
     system_prompt = models.TextField(default=SYSTEM_PROMPT)
     model_name = models.CharField(max_length=100, default="gpt-4.1-mini")
     temperature = models.FloatField(default=0.8)
+    enable_fengshui_engine = models.BooleanField(default=True)
+    enable_face_reading_engine = models.BooleanField(default=True)
+    enable_palm_reading_engine = models.BooleanField(default=True)
+    enable_vehicle_numerology_engine = models.BooleanField(default=True)
+    enable_house_numerology_engine = models.BooleanField(default=True)
+    enable_compatibility_engine = models.BooleanField(default=True)
+    compatibility_score_threshold = models.PositiveSmallIntegerField(default=58)
+    engine_operator_note = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.CharField(max_length=150, blank=True)
 
@@ -65,6 +73,14 @@ class AssistantConfig(models.Model):
                 "system_prompt": SYSTEM_PROMPT,
                 "model_name": "gpt-4.1-mini",
                 "temperature": 0.8,
+                "enable_fengshui_engine": True,
+                "enable_face_reading_engine": True,
+                "enable_palm_reading_engine": True,
+                "enable_vehicle_numerology_engine": True,
+                "enable_house_numerology_engine": True,
+                "enable_compatibility_engine": True,
+                "compatibility_score_threshold": 58,
+                "engine_operator_note": "",
             },
         )
         return config
@@ -87,6 +103,14 @@ class AssistantConfigHistory(models.Model):
     system_prompt = models.TextField()
     model_name = models.CharField(max_length=100)
     temperature = models.FloatField()
+    enable_fengshui_engine = models.BooleanField(default=True)
+    enable_face_reading_engine = models.BooleanField(default=True)
+    enable_palm_reading_engine = models.BooleanField(default=True)
+    enable_vehicle_numerology_engine = models.BooleanField(default=True)
+    enable_house_numerology_engine = models.BooleanField(default=True)
+    enable_compatibility_engine = models.BooleanField(default=True)
+    compatibility_score_threshold = models.PositiveSmallIntegerField(default=58)
+    engine_operator_note = models.TextField(blank=True)
     changed_by = models.CharField(max_length=150, blank=True)
     change_reason = models.CharField(max_length=20, choices=ChangeReason.choices, default=ChangeReason.UPDATE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -112,6 +136,14 @@ class AssistantConfigHistory(models.Model):
             system_prompt=config.system_prompt,
             model_name=config.model_name,
             temperature=config.temperature,
+            enable_fengshui_engine=config.enable_fengshui_engine,
+            enable_face_reading_engine=config.enable_face_reading_engine,
+            enable_palm_reading_engine=config.enable_palm_reading_engine,
+            enable_vehicle_numerology_engine=config.enable_vehicle_numerology_engine,
+            enable_house_numerology_engine=config.enable_house_numerology_engine,
+            enable_compatibility_engine=config.enable_compatibility_engine,
+            compatibility_score_threshold=config.compatibility_score_threshold,
+            engine_operator_note=config.engine_operator_note,
             changed_by=changed_by,
             change_reason=change_reason,
         )

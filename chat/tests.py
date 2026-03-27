@@ -188,6 +188,32 @@ class OperatorPortalTests(TestCase):
         )
         self.assertEqual(advanced_response.status_code, 403)
 
+    def test_admin_can_update_engine_settings(self) -> None:
+        self.client.login(username="admin", password="testpass123")
+        response = self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "save_engines",
+                "enable_fengshui_engine": "",
+                "enable_face_reading_engine": "on",
+                "enable_palm_reading_engine": "",
+                "enable_vehicle_numerology_engine": "on",
+                "enable_house_numerology_engine": "on",
+                "enable_compatibility_engine": "",
+                "compatibility_score_threshold": "70",
+                "engine_operator_note": "សូមឆ្លើយខ្លី និងមិនឱ្យខ្លាច",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        config = AssistantConfig.get_solo()
+        self.assertFalse(config.enable_fengshui_engine)
+        self.assertTrue(config.enable_face_reading_engine)
+        self.assertFalse(config.enable_palm_reading_engine)
+        self.assertFalse(config.enable_compatibility_engine)
+        self.assertEqual(config.compatibility_score_threshold, 70)
+        self.assertIn("មិនឱ្យខ្លាច", config.engine_operator_note)
+
     def test_operator_dashboard_shows_operations_section(self) -> None:
         self.client.login(username="admin", password="testpass123")
         response = self.client.get(reverse("chat:operator_dashboard"))
@@ -312,6 +338,26 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("ផ្លាកលេខរថយន្ត", profile_block)
         self.assertIn("លេខផ្ទះ", profile_block)
         self.assertIn("Compatibility Engine", profile_block)
+
+    def test_service_profile_context_respects_engine_toggles(self) -> None:
+        config = AssistantConfig.get_solo()
+        config.enable_fengshui_engine = False
+        config.enable_vehicle_numerology_engine = False
+        config.enable_house_numerology_engine = False
+        config.enable_compatibility_engine = False
+        config.engine_operator_note = "ឆ្លើយអោយទន់ភ្លន់"
+        config.save()
+
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
+        history = [Message(role=Message.Role.USER, content="សួស្តី")]
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            get_yeay_monny_reply(history, user_profile={"birth_info": "1998"})
+
+        profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
+        self.assertIn("ម៉ាស៊ីន Feng Shui ត្រូវបានបិទ", profile_block)
+        self.assertIn("ម៉ាស៊ីនលេខផ្លាករថយន្តត្រូវបានបិទ", profile_block)
+        self.assertIn("ឆ្លើយអោយទន់ភ្លន់", profile_block)
 
 
     def test_service_rewrites_non_khmer_reply(self) -> None:

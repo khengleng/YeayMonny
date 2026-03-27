@@ -16,7 +16,12 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .forms import AssistantAdvancedSettingsForm, AssistantPromptForm, OperatorAuthenticationForm
+from .forms import (
+    AssistantAdvancedSettingsForm,
+    AssistantEngineSettingsForm,
+    AssistantPromptForm,
+    OperatorAuthenticationForm,
+)
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .services import analyze_image_bytes, get_yeay_monny_reply, transcribe_audio_bytes
 from .telegram import fetch_telegram_file, send_telegram_message
@@ -302,6 +307,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 return _operator_forbidden(request)
             form = AssistantPromptForm(request.POST, instance=config)
             advanced_form = AssistantAdvancedSettingsForm(instance=config)
+            engine_form = AssistantEngineSettingsForm(instance=config)
             if form.is_valid():
                 AssistantConfigHistory.snapshot(
                     config=config,
@@ -318,6 +324,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 return _operator_forbidden(request)
             form = AssistantPromptForm(instance=config)
             advanced_form = AssistantAdvancedSettingsForm(request.POST, instance=config)
+            engine_form = AssistantEngineSettingsForm(instance=config)
             if advanced_form.is_valid():
                 AssistantConfigHistory.snapshot(
                     config=config,
@@ -328,6 +335,23 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 updated_config.updated_by = request.user.get_username()
                 updated_config.save()
                 messages.success(request, "បានរក្សាទុកការកំណត់ម៉ូឌែលរួចរាល់។")
+                return redirect("chat:operator_dashboard")
+        elif action == "save_engines":
+            if not can_manage_advanced:
+                return _operator_forbidden(request)
+            form = AssistantPromptForm(instance=config)
+            advanced_form = AssistantAdvancedSettingsForm(instance=config)
+            engine_form = AssistantEngineSettingsForm(request.POST, instance=config)
+            if engine_form.is_valid():
+                AssistantConfigHistory.snapshot(
+                    config=config,
+                    changed_by=request.user.get_username(),
+                    change_reason=AssistantConfigHistory.ChangeReason.UPDATE,
+                )
+                updated_config = engine_form.save(commit=False)
+                updated_config.updated_by = request.user.get_username()
+                updated_config.save()
+                messages.success(request, "បានរក្សាទុកការកំណត់ម៉ាស៊ីនទាយរួចរាល់។")
                 return redirect("chat:operator_dashboard")
         elif action == "rollback":
             if not can_rollback:
@@ -345,6 +369,14 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
             config.system_prompt = history_item.system_prompt
             config.model_name = history_item.model_name
             config.temperature = history_item.temperature
+            config.enable_fengshui_engine = history_item.enable_fengshui_engine
+            config.enable_face_reading_engine = history_item.enable_face_reading_engine
+            config.enable_palm_reading_engine = history_item.enable_palm_reading_engine
+            config.enable_vehicle_numerology_engine = history_item.enable_vehicle_numerology_engine
+            config.enable_house_numerology_engine = history_item.enable_house_numerology_engine
+            config.enable_compatibility_engine = history_item.enable_compatibility_engine
+            config.compatibility_score_threshold = history_item.compatibility_score_threshold
+            config.engine_operator_note = history_item.engine_operator_note
             config.updated_by = request.user.get_username()
             config.save()
             messages.success(request, "បានត្រឡប់ទៅកំណែមុនរួចរាល់។")
@@ -352,15 +384,18 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
         else:
             form = AssistantPromptForm(instance=config)
             advanced_form = AssistantAdvancedSettingsForm(instance=config)
+            engine_form = AssistantEngineSettingsForm(instance=config)
     else:
         form = AssistantPromptForm(instance=config)
         advanced_form = AssistantAdvancedSettingsForm(instance=config)
+        engine_form = AssistantEngineSettingsForm(instance=config)
 
     context = _build_dashboard_context(request, config=config)
     context.update(
         {
             "form": form,
             "advanced_form": advanced_form,
+            "engine_form": engine_form,
             "can_edit_prompt": can_edit_prompt,
             "can_manage_advanced": can_manage_advanced,
             "can_rollback": can_rollback,

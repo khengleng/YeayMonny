@@ -35,7 +35,16 @@ class MessageAdmin(admin.ModelAdmin):
 
 @admin.register(AssistantConfig)
 class AssistantConfigAdmin(admin.ModelAdmin):
-    list_display = ("id", "model_name", "temperature", "updated_at", "updated_by")
+    list_display = (
+        "id",
+        "model_name",
+        "temperature",
+        "enable_fengshui_engine",
+        "enable_face_reading_engine",
+        "enable_palm_reading_engine",
+        "updated_at",
+        "updated_by",
+    )
     readonly_fields = ("updated_at",)
 
     def has_add_permission(self, request):
@@ -44,7 +53,7 @@ class AssistantConfigAdmin(admin.ModelAdmin):
 
 @admin.register(AssistantConfigHistory)
 class AssistantConfigHistoryAdmin(admin.ModelAdmin):
-    list_display = ("id", "change_reason", "model_name", "temperature", "changed_by", "created_at")
+    list_display = ("id", "change_reason", "model_name", "temperature", "enable_compatibility_engine", "changed_by", "created_at")
     list_filter = ("change_reason", "created_at")
     search_fields = ("changed_by", "model_name", "system_prompt")
     readonly_fields = (
@@ -52,6 +61,14 @@ class AssistantConfigHistoryAdmin(admin.ModelAdmin):
         "system_prompt",
         "model_name",
         "temperature",
+        "enable_fengshui_engine",
+        "enable_face_reading_engine",
+        "enable_palm_reading_engine",
+        "enable_vehicle_numerology_engine",
+        "enable_house_numerology_engine",
+        "enable_compatibility_engine",
+        "compatibility_score_threshold",
+        "engine_operator_note",
         "changed_by",
         "change_reason",
         "created_at",

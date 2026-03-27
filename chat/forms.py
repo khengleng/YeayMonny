@@ -49,3 +49,36 @@ class AssistantAdvancedSettingsForm(forms.ModelForm):
             "model_name": "ឧ. gpt-4.1-mini",
             "temperature": "តម្លៃទាប = ឆ្លើយថេរជាងមុន, តម្លៃខ្ពស់ = ច្នៃប្រឌិតជាងមុន។",
         }
+
+
+class AssistantEngineSettingsForm(forms.ModelForm):
+    class Meta:
+        model = AssistantConfig
+        fields = [
+            "enable_fengshui_engine",
+            "enable_face_reading_engine",
+            "enable_palm_reading_engine",
+            "enable_vehicle_numerology_engine",
+            "enable_house_numerology_engine",
+            "enable_compatibility_engine",
+            "compatibility_score_threshold",
+            "engine_operator_note",
+        ]
+        widgets = {
+            "compatibility_score_threshold": forms.NumberInput(attrs={"min": "0", "max": "100"}),
+            "engine_operator_note": forms.Textarea(attrs={"rows": 4}),
+        }
+        labels = {
+            "enable_fengshui_engine": "បើក/បិទម៉ាស៊ីន Feng Shui",
+            "enable_face_reading_engine": "បើក/បិទម៉ាស៊ីនមើលមុខ",
+            "enable_palm_reading_engine": "បើក/បិទម៉ាស៊ីនមើលបាតដៃ",
+            "enable_vehicle_numerology_engine": "បើក/បិទម៉ាស៊ីនលេខផ្លាករថយន្ត",
+            "enable_house_numerology_engine": "បើក/បិទម៉ាស៊ីនលេខផ្ទះ",
+            "enable_compatibility_engine": "បើក/បិទម៉ាស៊ីនភាពត្រូវគ្នាស្នេហា",
+            "compatibility_score_threshold": "កម្រិតពិន្ទុភាពត្រូវគ្នា (0-100)",
+            "engine_operator_note": "កំណត់ចំណាំប្រតិបត្តិការ (បន្ថែមទៅបរិបទម៉ាស៊ីន)",
+        }
+        help_texts = {
+            "compatibility_score_threshold": "ពិន្ទុយោងសម្រាប់បកស្រាយថា ត្រូវគ្នាខ្លាំង ឬមធ្យម។",
+            "engine_operator_note": "សរសេរខ្លីៗជាភាសាខ្មែរ ដើម្បីណែនាំម៉ាស៊ីន (មិនបាច់ដាក់អត្ថបទវែងពេក)។",
+        }
