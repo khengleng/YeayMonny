@@ -25,6 +25,10 @@ Production-ready Django chat app for a Khmer fortune teller persona.
     (forehead, eyes, nose, mouth, chin, ears) before final reading
   - palm images now go through a rule-based palm-reading engine
     (heart line, head line, life line, fate line, sun line) before final reading
+  - vehicle plate numerology helper:
+    - extracts plate from user text
+    - computes alphanumeric total + root number
+    - adds Khmer guidance for driving/luck style
 - Built-in astrology context engine (local, no extra provider):
   - parses birth info
   - derives Chinese zodiac animal

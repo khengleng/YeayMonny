@@ -15,6 +15,7 @@ from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .palm_reading import build_palm_reading_engine_notes
 from .services import KHMER_ONLY_FALLBACK, get_yeay_monny_reply
+from .vehicle_numerology import build_vehicle_numerology_snapshot
 
 
 class ChatViewTests(TestCase):
@@ -306,6 +307,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("Flying Star ប្រចាំឆ្នាំ", profile_block)
         self.assertIn("ទិសល្អប្រចាំឆ្នាំ", profile_block)
         self.assertIn("TravelChinaGuide style", profile_block)
+        self.assertIn("ផ្លាកលេខរថយន្ត", profile_block)
 
 
     def test_service_rewrites_non_khmer_reply(self) -> None:
@@ -431,6 +433,20 @@ class PalmReadingEngineTests(TestCase):
         text = "រូបនេះមិនឃើញបាតដៃទេ ជាទេសភាពធម្មជាតិ។"
         notes = build_palm_reading_engine_notes(text)
         self.assertEqual(notes, "")
+
+
+class VehicleNumerologyTests(TestCase):
+    def test_vehicle_number_snapshot_extracts_root_number(self) -> None:
+        snap = build_vehicle_numerology_snapshot("ចៅចង់មើលផ្លាកលេខ 2AB-3456", life_path_number=6)
+        self.assertEqual(snap.plate_raw, "2AB-3456")
+        self.assertEqual(snap.total_value, 23)
+        self.assertEqual(snap.root_number, 5)
+        self.assertTrue(snap.meaning)
+
+    def test_vehicle_snapshot_empty_when_no_plate(self) -> None:
+        snap = build_vehicle_numerology_snapshot("ចៅសួររឿងការងារ")
+        self.assertIsNone(snap.plate_raw)
+        self.assertIsNone(snap.root_number)
 
 
 @override_settings(

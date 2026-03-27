@@ -16,6 +16,7 @@ from .fengshui import build_fengshui_snapshot
 from .models import AssistantConfig, Message
 from .palm_reading import build_palm_reading_engine_notes
 from .prompts import SYSTEM_PROMPT
+from .vehicle_numerology import build_vehicle_numerology_snapshot
 
 KHMER_GUARD_PROMPT = """
 ច្បាប់ភាសាខ្លាំង
@@ -58,8 +59,13 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
     name = (profile.get("name") or "").strip()
     birth_info = (profile.get("birth_info") or "").strip()
     question_focus = (profile.get("question_focus") or "").strip()
+    latest_user_text = (profile.get("latest_user_text") or "").strip()
     snapshot = build_astrology_snapshot(birth_info)
     feng = build_fengshui_snapshot(birth_info, partner_birth_info=question_focus)
+    vehicle = build_vehicle_numerology_snapshot(
+        f"{question_focus}\n{latest_user_text}",
+        life_path_number=snapshot.life_path_number,
+    )
 
     astrology_lines = []
     if snapshot.year:
@@ -115,6 +121,19 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         feng_lines.append(f"- ទំនាក់ទំនងជាមួយឆ្នាំ {feng.partner_animal}៖ {feng.partner_relation}")
     feng_block = "\n".join(feng_lines) if feng_lines else "- មិនទាន់គណនា WOFS បាន (ទិន្នន័យកំណើតមិនគ្រប់)"
 
+    vehicle_lines = []
+    if vehicle.plate_raw:
+        vehicle_lines.append(f"- ផ្លាកលេខរកឃើញ៖ {vehicle.plate_raw}")
+    if vehicle.total_value:
+        vehicle_lines.append(f"- ផលបូកលេខសរុប៖ {vehicle.total_value}")
+    if vehicle.root_number:
+        vehicle_lines.append(f"- លេខគោលរថយន្ត៖ {vehicle.root_number}")
+    if vehicle.meaning:
+        vehicle_lines.append(f"- អត្ថន័យ៖ {vehicle.meaning}")
+    if vehicle.compatibility_hint:
+        vehicle_lines.append(f"- ភាពសមគ្នា៖ {vehicle.compatibility_hint}")
+    vehicle_block = "\n".join(vehicle_lines) if vehicle_lines else "- មិនទាន់មានផ្លាកលេខសម្រាប់គណនា"
+
     return (
         "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
         f"- ឈ្មោះ៖ {name or 'មិនទាន់ប្រាប់'}\n"
@@ -124,6 +143,8 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         f"{astrology_block}\n\n"
         "លទ្ធផលគណនា Feng Shui (WOFS style)\n"
         f"{feng_block}\n\n"
+        "លទ្ធផលគណនាផ្លាកលេខរថយន្ត (Numerology)\n"
+        f"{vehicle_block}\n\n"
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
@@ -138,15 +159,25 @@ def _build_messages(
     system_prompt: str,
     user_profile: dict[str, str] | None = None,
 ) -> list[dict[str, str]]:
+    history_list = list(history)
+    latest_user_text = ""
+    for item in reversed(history_list):
+        if item.role == Message.Role.USER and item.content:
+            latest_user_text = item.content
+            break
+    profile_with_latest = {
+        **(user_profile or {}),
+        "latest_user_text": latest_user_text,
+    }
     messages = [
         {"role": "system", "content": system_prompt},
-        {"role": "system", "content": _build_profile_context(user_profile)},
+        {"role": "system", "content": _build_profile_context(profile_with_latest)},
         {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
         {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
         {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
     ]
-    for item in history:
+    for item in history_list:
         messages.append({"role": item.role, "content": item.content})
     return messages
 
