@@ -1,0 +1,125 @@
+:root {
+  --bg: #f6f2ea;
+  --card: #fffdf8;
+  --ink: #2e1f11;
+  --gold: #8f6a2a;
+  --soft: #efe3ce;
+  --user: #d9ead3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Noto Sans Khmer", "Battambang", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at top, #fff3d6 0, var(--bg) 40%);
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.card {
+  width: 100%;
+  max-width: 760px;
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(80, 56, 23, 0.18);
+  padding: 18px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+  color: var(--gold);
+}
+
+.header p {
+  margin: 6px 0 0;
+  opacity: 0.85;
+}
+
+.chat-box {
+  margin-top: 16px;
+  max-height: 48vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.bubble {
+  padding: 12px;
+  border-radius: 12px;
+  line-height: 1.55;
+  background: var(--soft);
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--user);
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+}
+
+.chat-form {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid {
+  display: grid;
+  gap: 10px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+  border-radius: 10px;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #d8c8ab;
+  padding: 10px;
+  background: #fff;
+}
+
+button {
+  border: 0;
+  padding: 12px;
+  color: #fff;
+  background: linear-gradient(120deg, #8f6a2a, #ac8642);
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+@media (min-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

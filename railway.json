@@ -1,0 +1,8 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "deploy": {
+    "startCommand": "gunicorn config.wsgi --log-file -",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 100
+  }
+}
