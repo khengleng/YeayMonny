@@ -123,7 +123,7 @@ class OperatorPortalTests(TestCase):
         self.client.login(username="admin", password="testpass123")
         response = self.client.get(reverse("chat:operator_dashboard"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ផ្ទាំងប្រតិបត្តិការ (Operations)")
+        self.assertContains(response, "ផ្ទាំងប្រតិបត្តិការ")
 
     def test_operator_can_open_conversation_detail(self) -> None:
         conversation = Conversation.objects.create(session_key="abc123", name="Test User")

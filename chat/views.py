@@ -198,7 +198,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 updated_config = form.save(commit=False)
                 updated_config.updated_by = request.user.get_username()
                 updated_config.save()
-                messages.success(request, "បានរក្សាទុក Prompt រួចរាល់។")
+                messages.success(request, "បានរក្សាទុកសារណែនាំរួចរាល់។")
                 return redirect("chat:operator_dashboard")
         elif action == "save_advanced":
             if not can_manage_advanced:
@@ -214,7 +214,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 updated_config = advanced_form.save(commit=False)
                 updated_config.updated_by = request.user.get_username()
                 updated_config.save()
-                messages.success(request, "បានរក្សាទុក Model/Temperature រួចរាល់។")
+                messages.success(request, "បានរក្សាទុកការកំណត់ម៉ូឌែលរួចរាល់។")
                 return redirect("chat:operator_dashboard")
         elif action == "rollback":
             if not can_rollback:
@@ -234,7 +234,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
             config.temperature = history_item.temperature
             config.updated_by = request.user.get_username()
             config.save()
-            messages.success(request, "បាន Rollback ទៅកំណែដែលជ្រើសរើសរួចរាល់។")
+            messages.success(request, "បានត្រឡប់ទៅកំណែមុនរួចរាល់។")
             return redirect("chat:operator_dashboard")
         else:
             form = AssistantPromptForm(instance=config)
