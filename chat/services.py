@@ -48,9 +48,32 @@ HIGH_EQ_GUARD_PROMPT = """
 KHMER_ONLY_FALLBACK = "កូនអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 
 
-def _build_messages(history: Iterable[Message], system_prompt: str) -> list[dict[str, str]]:
+def _build_profile_context(user_profile: dict[str, str] | None) -> str:
+    profile = user_profile or {}
+    name = (profile.get("name") or "").strip()
+    birth_info = (profile.get("birth_info") or "").strip()
+    question_focus = (profile.get("question_focus") or "").strip()
+
+    return (
+        "ប្រវត្តិអ្នកសួរ (ត្រូវយកមកគិតមុនឆ្លើយ)\n"
+        f"- ឈ្មោះ៖ {name or 'មិនទាន់ប្រាប់'}\n"
+        f"- ថ្ងៃ/ឆ្នាំកំណើត៖ {birth_info or 'មិនទាន់ប្រាប់'}\n"
+        f"- ប្រធានបទចម្បង៖ {question_focus or 'មិនទាន់ប្រាប់'}\n\n"
+        "ច្បាប់បន្ថែម\n"
+        "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
+        "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
+        "- កុំឆ្លើយទូទៅពេក បើមានប្រវត្តិរួចហើយ"
+    )
+
+
+def _build_messages(
+    history: Iterable[Message],
+    system_prompt: str,
+    user_profile: dict[str, str] | None = None,
+) -> list[dict[str, str]]:
     messages = [
         {"role": "system", "content": system_prompt},
+        {"role": "system", "content": _build_profile_context(user_profile)},
         {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
         {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
@@ -261,7 +284,11 @@ def _rewrite_to_fresh_style(*, client: OpenAI, model_name: str, text: str, histo
     return (response.output_text or "").strip()
 
 
-def get_yeay_monny_reply(history: Iterable[Message]) -> str:
+def get_yeay_monny_reply(
+    history: Iterable[Message],
+    *,
+    user_profile: dict[str, str] | None = None,
+) -> str:
     if not settings.OPENAI_API_KEY:
         return "កូនអើយ ឥឡូវនេះយាយមិនទាន់ភ្ជាប់សេវាមើលជោគជាតាបានទេ។ សូមសាកម្តងទៀតបន្តិចក្រោយ។"
 
@@ -274,7 +301,7 @@ def get_yeay_monny_reply(history: Iterable[Message]) -> str:
     try:
         response = client.responses.create(
             model=model_name,
-            input=_build_messages(history, system_prompt),
+            input=_build_messages(history, system_prompt, user_profile),
             temperature=temperature,
         )
     except OpenAIError:

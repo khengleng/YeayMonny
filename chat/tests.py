@@ -278,6 +278,24 @@ class AssistantConfigServiceTests(TestCase):
         self.assertEqual(kwargs["temperature"], 0.2)
         self.assertEqual(kwargs["input"][0]["content"], "custom system prompt")
 
+    def test_service_injects_user_profile_context(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
+        history = [Message(role=Message.Role.USER, content="សួស្តី")]
+        profile = {
+            "name": "សុភា",
+            "birth_info": "១៩៩៨",
+            "question_focus": "ការងារ",
+        }
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            get_yeay_monny_reply(history, user_profile=profile)
+
+        kwargs = mock_client.responses.create.call_args.kwargs
+        profile_block = kwargs["input"][1]["content"]
+        self.assertIn("សុភា", profile_block)
+        self.assertIn("១៩៩៨", profile_block)
+        self.assertIn("ការងារ", profile_block)
+
     def test_service_rewrites_non_khmer_reply(self) -> None:
         config = AssistantConfig.get_solo()
         config.model_name = "gpt-4.1"

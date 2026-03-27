@@ -76,6 +76,14 @@ def _build_telegram_multimodal_user_content(
     return "\n\n".join(blocks).strip()
 
 
+def _conversation_profile(conversation: Conversation) -> dict[str, str]:
+    return {
+        "name": (conversation.name or "").strip(),
+        "birth_info": (conversation.birth_info or "").strip(),
+        "question_focus": (conversation.question_focus or "").strip(),
+    }
+
+
 class OperatorLoginView(LoginView):
     template_name = "chat/operator_login.html"
     redirect_authenticated_user = True
@@ -246,7 +254,7 @@ def chat_home(request: HttpRequest) -> HttpResponse:
             )
 
             history = conversation.messages.all()
-            assistant_text = get_yeay_monny_reply(history)
+            assistant_text = get_yeay_monny_reply(history, user_profile=_conversation_profile(conversation))
 
             Message.objects.create(
                 conversation=conversation,
@@ -402,6 +410,7 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
         return JsonResponse({"ok": True})
 
     chat = message.get("chat") or {}
+    from_user = message.get("from") or {}
     chat_id = chat.get("id")
     text = (message.get("text") or "").strip()
     caption = (message.get("caption") or "").strip()
@@ -477,6 +486,19 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
         return JsonResponse({"ok": True})
 
     conversation = _get_or_create_telegram_conversation(chat_id)
+    if not conversation.name:
+        full_name = " ".join(
+            p
+            for p in [
+                (from_user.get("first_name") or "").strip(),
+                (from_user.get("last_name") or "").strip(),
+            ]
+            if p
+        ).strip()
+        if full_name:
+            conversation.name = full_name
+            conversation.save(update_fields=["name", "updated_at"])
+
     Message.objects.create(
         conversation=conversation,
         role=Message.Role.USER,
@@ -484,7 +506,7 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     )
 
     history = conversation.messages.all()
-    assistant_text = get_yeay_monny_reply(history)
+    assistant_text = get_yeay_monny_reply(history, user_profile=_conversation_profile(conversation))
 
     Message.objects.create(
         conversation=conversation,
