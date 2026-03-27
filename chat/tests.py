@@ -80,6 +80,24 @@ class OperatorPortalTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("chat:operator_dashboard"), response.url)
 
+    def test_non_operator_login_is_rejected_from_operator_portal(self) -> None:
+        response = self.client.post(
+            reverse("chat:operator_login"),
+            {"username": "viewer", "password": "testpass123"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "មិនទាន់មានសិទ្ធិប្រើផ្ទាំងប្រតិបត្តិការ")
+
+    def test_operator_logout_requires_post(self) -> None:
+        self.client.login(username="admin", password="testpass123")
+        get_response = self.client.get(reverse("chat:operator_logout"))
+        self.assertEqual(get_response.status_code, 405)
+
+        post_response = self.client.post(reverse("chat:operator_logout"))
+        self.assertEqual(post_response.status_code, 302)
+        self.assertIn(reverse("chat:operator_login"), post_response.url)
+
     def test_operator_requires_login(self) -> None:
         response = self.client.get(reverse("chat:operator_dashboard"))
         self.assertEqual(response.status_code, 302)

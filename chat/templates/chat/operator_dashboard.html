@@ -10,7 +10,9 @@
       .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
       h1 { margin: 0 0 8px; }
       .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-      a.btn { text-decoration: none; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; }
+      a.btn, button.btn { text-decoration: none; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; background: #fff; cursor: pointer; }
+      .nav { display: flex; gap: 10px; align-items: center; }
+      .nav form { margin: 0; }
       label { display: block; margin-top: 14px; font-weight: 600; }
       textarea, input { width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid #d0d7de; font: inherit; }
       button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: #2f7d32; color: #fff; }
@@ -46,7 +48,14 @@
             <h1>ផ្ទាំងអ្នកគ្រប់គ្រង</h1>
             <p class="help">កែសម្រួលការកំណត់របស់យាយមុន្នីបានភ្លាមៗ</p>
           </div>
-          <a class="btn" href="{% url 'chat:operator_logout' %}">ចាកចេញ</a>
+          <div class="nav">
+            <a class="btn" href="{% url 'chat:home' %}">មើលទំព័រអតិថិជន</a>
+            <a class="btn" href="/admin/">Django Admin</a>
+            <form method="post" action="{% url 'chat:operator_logout' %}">
+              {% csrf_token %}
+              <button class="btn" type="submit">ចាកចេញ</button>
+            </form>
+          </div>
         </div>
 
         {% if messages %}

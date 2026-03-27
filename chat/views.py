@@ -30,11 +30,27 @@ class OperatorLoginView(LoginView):
     next_page = reverse_lazy("chat:operator_dashboard")
     authentication_form = OperatorAuthenticationForm
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = self.request.user
+        if not _has_operator_view_permission(user):
+            logout(self.request)
+            messages.error(
+                self.request,
+                "គណនីនេះមិនទាន់មានសិទ្ធិប្រើផ្ទាំងប្រតិបត្តិការទេ។ សូមទាក់ទងអ្នកគ្រប់គ្រង។",
+            )
+            return redirect("chat:operator_login")
+        return response
 
-@require_http_methods(["GET"])
+
+@require_http_methods(["POST"])
 def operator_logout(request: HttpRequest) -> HttpResponse:
     logout(request)
     return redirect("chat:operator_login")
+
+
+def _operator_forbidden(request: HttpRequest) -> HttpResponse:
+    return render(request, "chat/operator_forbidden.html", status=403)
 
 
 def _get_or_create_conversation(request: HttpRequest) -> Conversation:
@@ -174,7 +190,7 @@ def chat_home(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["GET", "POST"])
 def operator_dashboard(request: HttpRequest) -> HttpResponse:
     if not _has_operator_view_permission(request.user):
-        return HttpResponse(status=403)
+        return _operator_forbidden(request)
 
     config = AssistantConfig.get_solo()
     can_edit_prompt = _can_edit_prompt(request.user)
@@ -186,7 +202,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
 
         if action == "save_prompt":
             if not can_edit_prompt:
-                return HttpResponse(status=403)
+                return _operator_forbidden(request)
             form = AssistantPromptForm(request.POST, instance=config)
             advanced_form = AssistantAdvancedSettingsForm(instance=config)
             if form.is_valid():
@@ -202,7 +218,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 return redirect("chat:operator_dashboard")
         elif action == "save_advanced":
             if not can_manage_advanced:
-                return HttpResponse(status=403)
+                return _operator_forbidden(request)
             form = AssistantPromptForm(instance=config)
             advanced_form = AssistantAdvancedSettingsForm(request.POST, instance=config)
             if advanced_form.is_valid():
@@ -218,7 +234,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 return redirect("chat:operator_dashboard")
         elif action == "rollback":
             if not can_rollback:
-                return HttpResponse(status=403)
+                return _operator_forbidden(request)
             version_id = request.POST.get("version_id")
             history_item = get_object_or_404(
                 AssistantConfigHistory.objects.filter(config=config),
@@ -260,7 +276,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
 @require_http_methods(["GET"])
 def operator_conversation_detail(request: HttpRequest, conversation_id) -> HttpResponse:
     if not _has_operator_view_permission(request.user):
-        return HttpResponse(status=403)
+        return _operator_forbidden(request)
     conversation = get_object_or_404(Conversation, pk=conversation_id)
     messages_page = Paginator(
         conversation.messages.all(),

@@ -18,6 +18,11 @@
     <div class="wrap">
       <h1>ចូលប្រើផ្ទាំងគ្រប់គ្រង</h1>
       <p>សូមចូលដោយគណនី Operator ដើម្បីកែការកំណត់របស់យាយមុន្នី។</p>
+      {% if messages %}
+        {% for message in messages %}
+          <div class="err">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
       <form method="post">
         {% csrf_token %}
         {{ form.non_field_errors }}

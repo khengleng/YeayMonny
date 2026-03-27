@@ -15,7 +15,8 @@
       .assistant { border-left: 4px solid #2f7d32; }
       .user { border-left: 4px solid #1f6feb; }
       .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-      a.btn { text-decoration: none; color: #1f6feb; }
+      a.btn { text-decoration: none; color: #1f6feb; margin-left: 10px; }
+      .actions { display: flex; align-items: center; }
       .pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
       .pager a { text-decoration: none; color: #1f6feb; }
       .muted { color: #5c6978; }
@@ -26,7 +27,10 @@
       <div class="card">
         <div class="top">
           <h1>សន្ទនាលម្អិត</h1>
-          <a class="btn" href="{% url 'chat:operator_dashboard' %}">ត្រឡប់ទៅផ្ទាំងប្រតិបត្តិការ</a>
+          <div class="actions">
+            <a class="btn" href="{% url 'chat:operator_dashboard' %}">ត្រឡប់ទៅផ្ទាំងប្រតិបត្តិការ</a>
+            <a class="btn" href="/admin/">Django Admin</a>
+          </div>
         </div>
         <div class="meta">
           លេខសម័យ: {{ conversation.session_key }}<br />
