@@ -21,7 +21,7 @@ from .models import AssistantConfig, AssistantConfigHistory, Conversation, Messa
 from .services import analyze_image_bytes, get_yeay_monny_reply, transcribe_audio_bytes
 from .telegram import fetch_telegram_file, send_telegram_message
 
-FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ មកអង្គុយសិន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
+FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ សរសេរមកយាយបាន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
 
 
 def _is_valid_upload_size(file_obj, max_mb: int) -> bool:

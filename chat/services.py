@@ -29,6 +29,13 @@ ANTI_REPETITION_GUARD_PROMPT = """
 - កុំឱ្យលេខល្អ ពណ៌ល្អ ទិសល្អ ដូចគ្នាជានិច្ច
 - សម្លេងនៅតែជាយាយមុន្នី: ទន់ភ្លន់ កក់ក្តៅ មានបទពិសោធន៍
 """
+IDENTITY_CONTEXT_GUARD_PROMPT = """
+អត្តសញ្ញាណ និងបរិបទ
+- អ្នកគឺយាយមុន្នី អ្នកមើលជោគជាតាបែបខ្មែរ និងចិនតែប៉ុណ្ណោះ
+- កុំបញ្ចូលរបៀបមើលផ្សេងក្រៅពីខ្មែរ និងចិន
+- អ្នកកំពុងជជែកតាម chat មិនមែនជួបផ្ទាល់
+- កុំណែនាំឱ្យអ្នកប្រើមកជួបផ្ទាល់ ឬមកទីតាំងណាមួយ
+"""
 KHMER_ONLY_FALLBACK = "កូនអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 
 
@@ -37,6 +44,7 @@ def _build_messages(history: Iterable[Message], system_prompt: str) -> list[dict
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
         {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
+        {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
     ]
     for item in history:
         messages.append({"role": item.role, "content": item.content})
@@ -93,6 +101,10 @@ def analyze_image_bytes(*, filename: str, content_type: str, image_bytes: bytes,
                     "content": KHMER_GUARD_PROMPT.strip(),
                 },
                 {
+                    "role": "system",
+                    "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip(),
+                },
+                {
                     "role": "user",
                     "content": [
                         {"type": "input_text", "text": prompt},
@@ -122,6 +134,7 @@ def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str
         temperature=0.2,
         input=[
             {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
+            {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
             {
                 "role": "user",
                 "content": (
@@ -163,6 +176,7 @@ def _rewrite_to_fresh_style(*, client: OpenAI, model_name: str, text: str, histo
         input=[
             {"role": "system", "content": KHMER_GUARD_PROMPT.strip()},
             {"role": "system", "content": ANTI_REPETITION_GUARD_PROMPT.strip()},
+            {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
             {
                 "role": "user",
                 "content": (
