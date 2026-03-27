@@ -1,17 +1,22 @@
 import json
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView
+from django.db import models
+from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .forms import AssistantAdvancedSettingsForm, AssistantPromptForm
+from .forms import AssistantAdvancedSettingsForm, AssistantPromptForm, OperatorAuthenticationForm
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .services import get_yeay_monny_reply
 from .telegram import send_telegram_message
@@ -23,10 +28,13 @@ class OperatorLoginView(LoginView):
     template_name = "chat/operator_login.html"
     redirect_authenticated_user = True
     next_page = reverse_lazy("chat:operator_dashboard")
+    authentication_form = OperatorAuthenticationForm
 
 
-class OperatorLogoutView(LogoutView):
-    next_page = "chat:operator_login"
+@require_http_methods(["GET"])
+def operator_logout(request: HttpRequest) -> HttpResponse:
+    logout(request)
+    return redirect("chat:operator_login")
 
 
 def _get_or_create_conversation(request: HttpRequest) -> Conversation:
@@ -68,6 +76,43 @@ def _can_manage_advanced_settings(user) -> bool:
 
 def _can_rollback(user) -> bool:
     return bool(user and user.is_authenticated and user.has_perm("chat.rollback_assistantconfig"))
+
+
+def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -> dict:
+    history_qs = config.history.all()
+    history_entries = Paginator(history_qs, 10).get_page(request.GET.get("history_page"))
+
+    query = (request.GET.get("q") or "").strip()
+    conversations_qs = Conversation.objects.all()
+    if query:
+        conversations_qs = conversations_qs.filter(
+            models.Q(session_key__icontains=query)
+            | models.Q(name__icontains=query)
+            | models.Q(question_focus__icontains=query)
+        )
+
+    recent_conversations = Paginator(
+        conversations_qs.order_by("-updated_at"),
+        20,
+    ).get_page(request.GET.get("conversation_page"))
+    recent_messages = Paginator(
+        Message.objects.select_related("conversation").order_by("-created_at"),
+        20,
+    ).get_page(request.GET.get("message_page"))
+    since_24h = timezone.now() - timedelta(hours=24)
+
+    return {
+        "history_entries": history_entries,
+        "query": query,
+        "recent_conversations": recent_conversations,
+        "recent_messages": recent_messages,
+        "total_conversations": Conversation.objects.count(),
+        "total_messages": Message.objects.count(),
+        "messages_24h": Message.objects.filter(created_at__gte=since_24h).count(),
+        "openai_ready": bool(settings.OPENAI_API_KEY),
+        "telegram_ready": bool(settings.TELEGRAM_BOT_TOKEN),
+        "telegram_webhook_path": settings.TELEGRAM_WEBHOOK_PATH,
+    }
 
 
 @require_http_methods(["GET", "POST"])
@@ -198,17 +243,35 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
         form = AssistantPromptForm(instance=config)
         advanced_form = AssistantAdvancedSettingsForm(instance=config)
 
-    history_entries = config.history.all()[:15]
-    return render(
-        request,
-        "chat/operator_dashboard.html",
+    context = _build_dashboard_context(request, config=config)
+    context.update(
         {
             "form": form,
             "advanced_form": advanced_form,
-            "history_entries": history_entries,
             "can_edit_prompt": can_edit_prompt,
             "can_manage_advanced": can_manage_advanced,
             "can_rollback": can_rollback,
+        }
+    )
+    return render(request, "chat/operator_dashboard.html", context)
+
+
+@login_required(login_url="chat:operator_login")
+@require_http_methods(["GET"])
+def operator_conversation_detail(request: HttpRequest, conversation_id) -> HttpResponse:
+    if not _has_operator_view_permission(request.user):
+        return HttpResponse(status=403)
+    conversation = get_object_or_404(Conversation, pk=conversation_id)
+    messages_page = Paginator(
+        conversation.messages.all(),
+        50,
+    ).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "chat/operator_conversation_detail.html",
+        {
+            "conversation": conversation,
+            "messages_page": messages_page,
         },
     )
 

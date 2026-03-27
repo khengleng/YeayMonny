@@ -1,6 +1,21 @@
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import AuthenticationForm
 
 from .models import AssistantConfig
+
+
+class OperatorAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(label="ឈ្មោះគណនី ឬអ៊ីមែល")
+
+    def clean_username(self):
+        raw_value = (self.cleaned_data.get("username") or "").strip()
+        if "@" not in raw_value:
+            return raw_value
+
+        user_model = get_user_model()
+        user = user_model.objects.filter(email__iexact=raw_value).first()
+        return user.get_username() if user else raw_value
 
 
 class AssistantPromptForm(forms.ModelForm):

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>សន្ទនាលម្អិត | Operator</title>
+    <style>
+      body { font-family: "Noto Sans Khmer", sans-serif; margin: 0; background: #f5f7fb; color: #1d2633; }
+      .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+      .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+      h1 { margin: 0 0 10px; }
+      .meta { color: #5c6978; margin-bottom: 16px; }
+      .row { border: 1px solid #e6ecf3; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+      .role { font-weight: 700; margin-bottom: 6px; }
+      .assistant { border-left: 4px solid #2f7d32; }
+      .user { border-left: 4px solid #1f6feb; }
+      .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+      a.btn { text-decoration: none; color: #1f6feb; }
+      .pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+      .pager a { text-decoration: none; color: #1f6feb; }
+      .muted { color: #5c6978; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="top">
+          <h1>សន្ទនាលម្អិត</h1>
+          <a class="btn" href="{% url 'chat:operator_dashboard' %}">ត្រឡប់ទៅផ្ទាំងប្រតិបត្តិការ</a>
+        </div>
+        <div class="meta">
+          Session: {{ conversation.session_key }}<br />
+          ឈ្មោះ: {{ conversation.name|default:"-" }} | Focus: {{ conversation.question_focus|default:"-" }}
+        </div>
+
+        {% for msg in messages_page %}
+          <div class="row {% if msg.role == 'assistant' %}assistant{% else %}user{% endif %}">
+            <div class="role">{{ msg.role }} · {{ msg.created_at|date:"Y-m-d H:i:s" }}</div>
+            <div>{{ msg.content|linebreaksbr }}</div>
+          </div>
+        {% endfor %}
+
+        <div class="pager">
+          {% if messages_page.has_previous %}
+            <a href="?page={{ messages_page.previous_page_number }}">មុន</a>
+          {% endif %}
+          <span class="muted">ទំព័រ {{ messages_page.number }} / {{ messages_page.paginator.num_pages }}</span>
+          {% if messages_page.has_next %}
+            <a href="?page={{ messages_page.next_page_number }}">បន្ទាប់</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

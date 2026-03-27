@@ -133,6 +133,16 @@ Or assign users from Django Admin:
 - Rollback is available from `/operator/` for `Prompt Admin` only
 - Full history is visible in `/admin/` as `Assistant Configuration History`
 
+## Operations portal capabilities
+
+The `/operator/` portal is not only for prompt editing. It now includes:
+
+- Live operations metrics (total conversations, total messages, last 24h activity)
+- Integration readiness status (OpenAI and Telegram)
+- Conversation monitoring with search and pagination
+- Recent message feed with links to full conversation transcript
+- Dedicated conversation detail page for support review
+
 ## Telegram setup
 
 1. Add environment variables:

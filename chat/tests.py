@@ -69,6 +69,16 @@ class OperatorPortalTests(TestCase):
     def _perm(self, codename: str) -> Permission:
         return Permission.objects.get(codename=codename)
 
+    def test_operator_login_supports_email(self) -> None:
+        self.admin_user.email = "admin@example.com"
+        self.admin_user.save(update_fields=["email"])
+        response = self.client.post(
+            reverse("chat:operator_login"),
+            {"username": "admin@example.com", "password": "testpass123"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("chat:operator_dashboard"), response.url)
+
     def test_operator_requires_login(self) -> None:
         response = self.client.get(reverse("chat:operator_dashboard"))
         self.assertEqual(response.status_code, 302)
@@ -108,6 +118,23 @@ class OperatorPortalTests(TestCase):
             },
         )
         self.assertEqual(advanced_response.status_code, 403)
+
+    def test_operator_dashboard_shows_operations_section(self) -> None:
+        self.client.login(username="admin", password="testpass123")
+        response = self.client.get(reverse("chat:operator_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ផ្ទាំងប្រតិបត្តិការ (Operations)")
+
+    def test_operator_can_open_conversation_detail(self) -> None:
+        conversation = Conversation.objects.create(session_key="abc123", name="Test User")
+        Message.objects.create(conversation=conversation, role=Message.Role.USER, content="hello")
+        self.client.login(username="admin", password="testpass123")
+        response = self.client.get(
+            reverse("chat:operator_conversation_detail", kwargs={"conversation_id": conversation.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "សន្ទនាលម្អិត")
+        self.assertContains(response, "hello")
 
     def test_admin_can_update_advanced_and_rollback(self) -> None:
         self.client.login(username="admin", password="testpass123")
