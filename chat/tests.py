@@ -271,7 +271,8 @@ class AssistantConfigServiceTests(TestCase):
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history)
 
-        self.assertEqual(reply, "នេះជាចម្លើយតេស្ត")
+        self.assertIn("នេះជាចម្លើយតេស្ត", reply)
+        self.assertIn("ចៅ", reply)
         mock_client.responses.create.assert_called_once()
         kwargs = mock_client.responses.create.call_args.kwargs
         self.assertEqual(kwargs["model"], "gpt-4.1")
@@ -312,7 +313,8 @@ class AssistantConfigServiceTests(TestCase):
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history)
 
-        self.assertEqual(reply, "នេះជាចម្លើយជាភាសាខ្មែរ។")
+        self.assertIn("នេះជាចម្លើយជាភាសាខ្មែរ។", reply)
+        self.assertIn("ចៅ", reply)
         self.assertEqual(mock_client.responses.create.call_count, 2)
 
     def test_service_returns_khmer_fallback_when_rewrite_fails(self) -> None:
@@ -342,7 +344,8 @@ class AssistantConfigServiceTests(TestCase):
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history)
 
-        self.assertEqual(reply, "កូនអើយ លើកនេះយាយសូមប្តូររបៀបណែនាំឱ្យសមស្ថានភាពកូន។")
+        self.assertIn("លើកនេះយាយសូមប្តូររបៀបណែនាំឱ្យសមស្ថានភាពកូន។", reply)
+        self.assertIn("ចៅ", reply)
         self.assertEqual(mock_client.responses.create.call_count, 2)
 
     def test_service_rewrites_near_duplicate_reply(self) -> None:
@@ -362,7 +365,8 @@ class AssistantConfigServiceTests(TestCase):
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history)
 
-        self.assertEqual(reply, "កូនសម្លាញ់ យាយសូមណែនាំឱ្យដោះស្រាយការងារម្តងមួយជំហាន ដោយរក្សាចិត្តឱ្យត្រជាក់។")
+        self.assertIn("កូនសម្លាញ់ យាយសូមណែនាំឱ្យដោះស្រាយការងារម្តងមួយជំហាន ដោយរក្សាចិត្តឱ្យត្រជាក់។", reply)
+        self.assertIn("ចៅ", reply)
         self.assertEqual(mock_client.responses.create.call_count, 2)
 
 

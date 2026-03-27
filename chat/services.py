@@ -19,6 +19,7 @@ KHMER_GUARD_PROMPT = """
 - កុំប្រើអក្សរឡាតាំង (A-Z, a-z) ក្នុងចម្លើយ
 - កុំប្រើប្រយោគភាសាអង់គ្លេស
 - ប្រើពាក្យសាមញ្ញ ងាយយល់
+- ត្រូវហៅអ្នកប្រើថា "ចៅ" ជានិច្ច
 """
 ANTI_REPETITION_GUARD_PROMPT = """
 ច្បាប់មិនឱ្យឆ្លើយដដែលៗ
@@ -45,7 +46,7 @@ HIGH_EQ_GUARD_PROMPT = """
 - កុំឆ្លើយបែបម៉ាស៊ីន ឬជាបញ្ជីដដែលៗ
 - បើអ្នកប្រើបារម្ភ ឬតានតឹង ត្រូវដាក់ពាក្យបន្ថយសម្ពាធជាមុន
 """
-KHMER_ONLY_FALLBACK = "កូនអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
+KHMER_ONLY_FALLBACK = "ចៅអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 
 
 def _build_profile_context(user_profile: dict[str, str] | None) -> str:
@@ -62,7 +63,8 @@ def _build_profile_context(user_profile: dict[str, str] | None) -> str:
         "ច្បាប់បន្ថែម\n"
         "- មុនឆ្លើយ ត្រូវយកប្រវត្តិនេះមកសម្របសំឡេងឱ្យសមមនុស្សនោះ\n"
         "- បើទិន្នន័យខ្វះ សូមសួរបន្ថែមដោយទន់ភ្លន់\n"
-        "- កុំឆ្លើយទូទៅពេក បើមានប្រវត្តិរួចហើយ"
+        "- កុំឆ្លើយទូទៅពេក បើមានប្រវត្តិរួចហើយ\n"
+        "- ត្រូវហៅអ្នកប្រើថា 'ចៅ' ជានិច្ច"
     )
 
 
@@ -184,6 +186,25 @@ def _looks_non_khmer(text: str) -> bool:
     if khmer_count == 0:
         return True
     return latin_count > 4
+
+
+def _enforce_grandchild_address(text: str) -> str:
+    value = (text or "").strip()
+    if not value:
+        return value
+
+    replacements = {
+        "កូនអើយ": "ចៅអើយ",
+        "កូនៗ": "ចៅៗ",
+        "កូន ": "ចៅ ",
+        " កូន": " ចៅ",
+    }
+    for src, dst in replacements.items():
+        value = value.replace(src, dst)
+
+    if "ចៅ" not in value:
+        value = f"ចៅអើយ {value}"
+    return value
 
 
 def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str:
@@ -312,7 +333,7 @@ def get_yeay_monny_reply(
         try:
             rewritten = _rewrite_to_khmer_only(client=client, model_name=model_name, text=text)
             if rewritten and not _looks_non_khmer(rewritten):
-                return rewritten
+                return _enforce_grandchild_address(rewritten)
         except OpenAIError:
             return KHMER_ONLY_FALLBACK
         return KHMER_ONLY_FALLBACK
@@ -326,10 +347,10 @@ def get_yeay_monny_reply(
                 history=history,
             )
             if rewritten and not _looks_non_khmer(rewritten) and not _looks_repetitive_against_history(rewritten, history):
-                return rewritten
+                return _enforce_grandchild_address(rewritten)
         except OpenAIError:
             pass
 
     if text:
-        return text
-    return "យាយសូមអភ័យទោស កូនអើយ។ យាយមិនទាន់អាចឆ្លើយបានច្បាស់ទេ សូមសួរម្តងទៀត។"
+        return _enforce_grandchild_address(text)
+    return "យាយសូមអភ័យទោស ចៅអើយ។ យាយមិនទាន់អាចឆ្លើយបានច្បាស់ទេ សូមសួរម្តងទៀត។"

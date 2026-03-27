@@ -21,9 +21,9 @@ from .models import AssistantConfig, AssistantConfigHistory, Conversation, Messa
 from .services import analyze_image_bytes, get_yeay_monny_reply, transcribe_audio_bytes
 from .telegram import fetch_telegram_file, send_telegram_message
 
-FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ កូនអើយ។ សរសេរមកយាយបាន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
+FIRST_MESSAGE = "យាយមុន្នីនៅទីនេះ ចៅអើយ។ សរសេរមកយាយបាន។ ប្រាប់យាយពីឈ្មោះ ថ្ងៃកំណើត បើចាំបាន ហើយប្រាប់ថាចង់អោយយាយមើលរឿងអ្វី។"
 TEXT_PREFERRED_NOTE = (
-    "កូនអើយ យាយស្តាប់សម្លេងមិនទាន់ច្បាស់ទេ។ "
+    "ចៅអើយ យាយស្តាប់សម្លេងមិនទាន់ច្បាស់ទេ។ "
     "សូមសរសេរជាអក្សរមកយាយម្ដងទៀត។ "
     "អក្សរងាយឱ្យយាយមើលបានច្បាស់ជាងសម្លេង។"
 )
@@ -245,7 +245,7 @@ def chat_home(request: HttpRequest) -> HttpResponse:
                 image_summary=image_summary,
             )
             if not combined_user_content:
-                combined_user_content = "កូនអើយ យាយបានទទួលឯកសារ ប៉ុន្តែមិនទាន់អាចអានបានច្បាស់។"
+                combined_user_content = "ចៅអើយ យាយបានទទួលឯកសារ ប៉ុន្តែមិនទាន់អាចអានបានច្បាស់។"
 
             Message.objects.create(
                 conversation=conversation,
@@ -482,7 +482,7 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
         return JsonResponse({"ok": True})
 
     if not combined_user_content:
-        send_telegram_message(chat_id, "កូនអើយ សូមផ្ញើសារជាអក្សរ សម្លេង ឬរូបភាពមកយាយ។")
+        send_telegram_message(chat_id, "ចៅអើយ សូមផ្ញើសារជាអក្សរ សម្លេង ឬរូបភាពមកយាយ។")
         return JsonResponse({"ok": True})
 
     conversation = _get_or_create_telegram_conversation(chat_id)
