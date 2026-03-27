@@ -20,6 +20,10 @@ if railway_domain := os.getenv("RAILWAY_PUBLIC_DOMAIN"):
 if railway_private_domain := os.getenv("RAILWAY_PRIVATE_DOMAIN"):
     ALLOWED_HOSTS.append(railway_private_domain)
 
+# Railway health checks can use internal host headers that are not always predictable.
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    ALLOWED_HOSTS.append("*")
+
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
