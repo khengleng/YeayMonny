@@ -33,21 +33,6 @@ DAY_WEIGHT_QIAN = {
     21: 10, 22: 9, 23: 8, 24: 9, 25: 15, 26: 18, 27: 7, 28: 8, 29: 16, 30: 6,
 }
 
-HOUR_WEIGHT_QIAN = {
-    23: 16, 0: 16,
-    1: 6, 2: 6,
-    3: 7, 4: 7,
-    5: 10, 6: 10,
-    7: 9, 8: 9,
-    9: 16, 10: 16,
-    11: 10, 12: 10,
-    13: 8, 14: 8,
-    15: 8, 16: 8,
-    17: 9, 18: 9,
-    19: 6, 20: 6,
-    21: 6, 22: 6,
-}
-
 HEAVENLY_STEMS = ["jia", "yi", "bing", "ding", "wu", "ji", "geng", "xin", "ren", "gui"]
 EARTHLY_BRANCHES = ["zi", "chou", "yin", "mao", "chen", "si", "wu", "wei", "shen", "you", "xu", "hai"]
 
@@ -70,20 +55,54 @@ class BirthWeightSnapshot:
     note: str | None = None
 
 
-def _extract_hour(text: str) -> int | None:
+def _extract_time(text: str) -> tuple[int | None, int]:
     normalized = (text or "").translate(KHMER_DIGITS_MAP)
     match = re.search(r"(\d{1,2})[:hH](\d{1,2})", normalized)
     if match:
         hh = int(match.group(1))
-        if 0 <= hh <= 23:
-            return hh
-    # fallback standalone hour hint, e.g. "កើតម៉ោង 14"
+        mm = int(match.group(2))
+        if 0 <= hh <= 23 and 0 <= mm <= 59:
+            return hh, mm
+
     m2 = re.search(r"(?:ម៉ោង|hour)\s*(\d{1,2})", normalized, flags=re.IGNORECASE)
     if m2:
         hh = int(m2.group(1))
         if 0 <= hh <= 23:
-            return hh
-    return None
+            return hh, 0
+    return None, 0
+
+
+def _hour_weight_qian_by_wofs_slot(hour: int | None, minute: int) -> int:
+    if hour is None:
+        return 0
+    # WOFS slots:
+    # 2301-0100, 0101-0300, 0301-0500, 0501-0700, 0701-0900, 0901-1100,
+    # 1101-1300, 1301-1500, 1501-1700, 1701-1900, 1901-2100, 2101-2300
+    # We keep exact boundary behavior.
+    if (hour == 23 and minute >= 1) or hour == 0 or (hour == 1 and minute == 0):
+        return 16
+    if (hour == 1 and minute >= 1) or hour == 2 or (hour == 3 and minute == 0):
+        return 6
+    if (hour == 3 and minute >= 1) or hour == 4 or (hour == 5 and minute == 0):
+        return 7
+    if (hour == 5 and minute >= 1) or hour == 6 or (hour == 7 and minute == 0):
+        return 10
+    if (hour == 7 and minute >= 1) or hour == 8 or (hour == 9 and minute == 0):
+        return 9
+    if (hour == 9 and minute >= 1) or hour == 10 or (hour == 11 and minute == 0):
+        return 16
+    if (hour == 11 and minute >= 1) or hour == 12 or (hour == 13 and minute == 0):
+        return 10
+    if (hour == 13 and minute >= 1) or hour == 14 or (hour == 15 and minute == 0):
+        return 8
+    if (hour == 15 and minute >= 1) or hour == 16 or (hour == 17 and minute == 0):
+        return 8
+    if (hour == 17 and minute >= 1) or hour == 18 or (hour == 19 and minute == 0):
+        return 9
+    if (hour == 19 and minute >= 1) or hour == 20 or (hour == 21 and minute == 0):
+        return 6
+    # 2101-2300 (includes 23:00)
+    return 6
 
 
 def _year_key(year: int) -> str:
@@ -114,7 +133,7 @@ def build_birth_weight_snapshot(birth_info: str) -> BirthWeightSnapshot:
     if not (year and month and day):
         return BirthWeightSnapshot()
 
-    hour = _extract_hour(birth_info)
+    hour, minute = _extract_time(birth_info)
     try:
         lunar = LunarDate.fromSolarDate(year, month, day)
     except ValueError:
@@ -124,7 +143,7 @@ def build_birth_weight_snapshot(birth_info: str) -> BirthWeightSnapshot:
     y_qian = YEAR_WEIGHT_QIAN.get(y_key)
     m_qian = MONTH_WEIGHT_QIAN.get(lunar.month)
     d_qian = DAY_WEIGHT_QIAN.get(lunar.day)
-    h_qian = HOUR_WEIGHT_QIAN.get(hour) if hour is not None else 0
+    h_qian = _hour_weight_qian_by_wofs_slot(hour, minute)
 
     if y_qian is None or m_qian is None or d_qian is None:
         return BirthWeightSnapshot(

@@ -701,6 +701,18 @@ class BirthWeightEngineTests(TestCase):
         self.assertEqual(snap.lunar_day, 23)
         self.assertEqual(snap.total_weight, 4.2)
 
+    def test_birth_weight_wofs_boundary_0100_stays_in_first_slot(self) -> None:
+        # WOFS slot boundary: 23:01-01:00 belongs to first slot (1.6 liang).
+        snap = build_birth_weight_snapshot("14-02-1974 01:00")
+        self.assertEqual(snap.hour_weight_qian, 16)
+        self.assertEqual(snap.total_weight, 4.2)
+
+    def test_birth_weight_wofs_boundary_0101_moves_to_second_slot(self) -> None:
+        # WOFS slot boundary: 01:01 starts second slot (0.6 liang).
+        snap = build_birth_weight_snapshot("14-02-1974 01:01")
+        self.assertEqual(snap.hour_weight_qian, 6)
+        self.assertEqual(snap.total_weight, 3.2)
+
     def test_service_profile_includes_birth_weight_line(self) -> None:
         mock_client = MagicMock()
         mock_client.responses.create.return_value = SimpleNamespace(output_text="ចម្លើយ")
