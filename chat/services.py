@@ -79,6 +79,17 @@ LUCKY_SIGNS_ON_DEMAND_PROMPT = """
 """
 
 
+def _is_birth_weight_question(*, question_focus: str, latest_user_text: str) -> bool:
+    text = f"{question_focus}\n{latest_user_text}"
+    return bool(
+        re.search(
+            r"(ទម្ងន់កំណើត|astrological weight|weight at birth|birth weight|wofs.*weight)",
+            text,
+            flags=re.IGNORECASE,
+        )
+    )
+
+
 def _wants_lucky_signs(*, question_focus: str, latest_user_text: str) -> bool:
     text = f"{question_focus}\n{latest_user_text}"
     return bool(
@@ -152,7 +163,7 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
     if snapshot.life_path_number:
         astrology_lines.append(f"- លេខផ្លូវជីវិត៖ {snapshot.life_path_number}")
     if birth_weight.total_weight is not None:
-        astrology_lines.append(f"- Birth Weight (liang/qian)៖ {birth_weight.total_weight}")
+        astrology_lines.append(f"- ទម្ងន់កំណើត (លាំង/ឈៀន)៖ {birth_weight.total_weight}")
     if birth_weight.result_label:
         astrology_lines.append(f"- លទ្ធផលទម្ងន់កំណើត៖ {birth_weight.result_label}")
     if birth_weight.note:
@@ -368,6 +379,25 @@ def _khmer_num(value: str) -> str:
     return value.translate(ASCII_TO_KHMER_DIGITS)
 
 
+def _build_birth_weight_reply(user_profile: dict[str, str] | None) -> str:
+    profile = user_profile or {}
+    birth_info = (profile.get("birth_info") or "").strip()
+    snapshot = build_birth_weight_snapshot(birth_info)
+    if snapshot.total_weight is None:
+        return (
+            "ចៅអើយ សម្រាប់គណនាទម្ងន់កំណើតបែបទស្សន៍ទាយ "
+            "សូមផ្តល់ថ្ងៃ-ខែ-ឆ្នាំកំណើតពេញ និងម៉ោងកំណើត។"
+        )
+
+    total = _khmer_num(f"{snapshot.total_weight:.1f}")
+    label = snapshot.result_label or "មធ្យម"
+    note = snapshot.note or "ធ្វើការសម្រេចចិត្តឱ្យស្ងប់ និងមានផែនការ។"
+    return (
+        f"ចៅអើយ ទម្ងន់កំណើតបែបទស្សន៍ទាយរបស់ចៅគឺ {total} លាំង។ "
+        f"ន័យសរុប៖ {label}។ {note}"
+    )
+
+
 def _build_calculation_basis_line(user_profile: dict[str, str] | None) -> str:
     profile = user_profile or {}
     birth_info = (profile.get("birth_info") or "").strip()
@@ -402,6 +432,8 @@ def _attach_calculation_basis(text: str, user_profile: dict[str, str] | None) ->
     profile = user_profile or {}
     question_focus = (profile.get("question_focus") or "").strip()
     latest_user_text = (profile.get("latest_user_text") or "").strip()
+    if _is_birth_weight_question(question_focus=question_focus, latest_user_text=latest_user_text):
+        return content
     wants_basis = bool(
         re.search(
             r"(អាយុ|គណនា|ថ្ងៃកំណើត|dob|birth|age)",
@@ -568,6 +600,27 @@ def _enforce_short_reply(text: str) -> str:
     return cut.rstrip() + "…"
 
 
+def _sanitize_birth_weight_language(text: str) -> str:
+    value = (text or "").strip()
+    if not value:
+        return value
+
+    value = value.replace("bone measurement", "វិធីទស្សន៍ទាយទម្ងន់កំណើត")
+    value = value.replace("bone weight", "ទម្ងន់កំណើតបែបទស្សន៍ទាយ")
+    value = value.replace("គ្លីនិក", "ការណែនាំទូទៅ")
+    value = value.replace("វេជ្ជសាស្ត្រ", "ទស្សន៍ទាយ")
+    value = value.replace("ឆ្អឹងរឹងមាំ", "ផ្លូវជីវិតមានកម្លាំង")
+    value = value.replace("ឆ្អឹងខ្សោយ", "ត្រូវប្រុងប្រយ័ត្នជំហានជីវិត")
+    value = value.replace("សុខភាពឆ្អឹង", "ស្ថានភាពជីវិត")
+    value = re.sub(r"ពិនិត្យឆ្អឹង", "គណនាទម្ងន់កំណើត", value)
+    value = re.sub(r"ជំងឺឆ្អឹង", "ផ្លូវជីវិតត្រូវប្រុងប្រយ័ត្ន", value)
+    value = re.sub(r"bone density", "ទម្ងន់កំណើតបែបទស្សន៍ទាយ", value, flags=re.IGNORECASE)
+
+    if "ទម្ងន់កំណើត" in value and "វិធីទស្សន៍ទាយ" not in value:
+        value = f"{value}\n\nចំណាំ៖ ទម្ងន់កំណើតនេះជាវិធីទស្សន៍ទាយបុរាណ មិនមែនការពិនិត្យសុខភាពទេ។"
+    return value
+
+
 def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str:
     response = client.responses.create(
         model=model_name,
@@ -678,12 +731,28 @@ def get_yeay_monny_reply(
     system_prompt = config.system_prompt or SYSTEM_PROMPT
     model_name = config.model_name or settings.OPENAI_MODEL
     temperature = config.temperature if config.temperature is not None else 0.8
+    history_list = list(history)
+    latest_user_text = ""
+    for item in reversed(history_list):
+        if item.role == Message.Role.USER and item.content:
+            latest_user_text = item.content
+            break
+    profile = {
+        **(user_profile or {}),
+        "latest_user_text": latest_user_text,
+    }
+    question_focus = (profile.get("question_focus") or "").strip()
+    if _is_birth_weight_question(question_focus=question_focus, latest_user_text=latest_user_text):
+        text = _build_birth_weight_reply(profile)
+        text = _enforce_grandchild_address(text)
+        text = _enforce_short_reply(text)
+        return _sanitize_birth_weight_language(text)
 
     client = _build_openai_client()
     try:
         response = client.responses.create(
             model=model_name,
-            input=_build_messages(history, system_prompt, user_profile, config=config),
+            input=_build_messages(history_list, system_prompt, profile, config=config),
             temperature=temperature,
         )
     except OpenAIError:
@@ -696,6 +765,7 @@ def get_yeay_monny_reply(
             if rewritten and not _looks_non_khmer(rewritten):
                 rewritten = _enforce_grandchild_address(rewritten)
                 rewritten = _enforce_short_reply(rewritten)
+                rewritten = _sanitize_birth_weight_language(rewritten)
                 return _attach_calculation_basis(rewritten, user_profile)
         except OpenAIError:
             return KHMER_ONLY_FALLBACK
@@ -712,6 +782,7 @@ def get_yeay_monny_reply(
             if rewritten and not _looks_non_khmer(rewritten) and not _looks_repetitive_against_history(rewritten, history):
                 rewritten = _enforce_grandchild_address(rewritten)
                 rewritten = _enforce_short_reply(rewritten)
+                rewritten = _sanitize_birth_weight_language(rewritten)
                 return _attach_calculation_basis(rewritten, user_profile)
         except OpenAIError:
             pass
@@ -719,5 +790,6 @@ def get_yeay_monny_reply(
     if text:
         text = _enforce_grandchild_address(text)
         text = _enforce_short_reply(text)
+        text = _sanitize_birth_weight_language(text)
         return _attach_calculation_basis(text, user_profile)
     return "យាយសូមអភ័យទោស ចៅអើយ។ យាយមិនទាន់អាចឆ្លើយបានច្បាស់ទេ សូមសួរម្តងទៀត។"

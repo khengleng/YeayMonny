@@ -451,6 +451,30 @@ class AssistantConfigServiceTests(TestCase):
             reply = get_yeay_monny_reply(history, user_profile=profile)
         self.assertNotIn("មូលដ្ឋានគណនា", reply)
 
+    def test_birth_weight_question_uses_local_engine_reply(self) -> None:
+        mock_client = MagicMock()
+        history = [Message(role=Message.Role.USER, content="សូមគណនាទម្ងន់កំណើត")]
+        profile = {
+            "birth_info": "14-02-1974 23:30",
+            "question_focus": "ទម្ងន់កំណើត",
+        }
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history, user_profile=profile)
+        self.assertIn("៤.២", reply)
+        self.assertNotIn("មូលដ្ឋានគណនា", reply)
+        self.assertFalse(mock_client.responses.create.called)
+
+    def test_birth_weight_reply_does_not_use_medical_bone_language(self) -> None:
+        history = [Message(role=Message.Role.USER, content="birth weight")]
+        profile = {
+            "birth_info": "14-02-1974 23:30",
+            "question_focus": "birth weight",
+        }
+        reply = get_yeay_monny_reply(history, user_profile=profile)
+        self.assertNotIn("ឆ្អឹង", reply)
+        self.assertNotIn("វេជ្ជសាស្ត្រ", reply)
+        self.assertNotIn("គ្លីនិក", reply)
+
     def test_service_profile_context_respects_engine_toggles(self) -> None:
         config = AssistantConfig.get_solo()
         config.enable_fengshui_engine = False
