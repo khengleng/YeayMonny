@@ -1,0 +1,92 @@
+:root {
+  --admin-bg: #f5f7fb;
+  --admin-surface: #ffffff;
+  --admin-text: #1d2633;
+  --admin-muted: #5c6978;
+  --admin-border: #dde6f0;
+  --admin-brand: #1f6feb;
+  --admin-brand-dark: #1a57c7;
+}
+
+body {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+#header {
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+#site-name a,
+#user-tools,
+#user-tools a {
+  color: var(--admin-text);
+}
+
+#site-name a:hover,
+#user-tools a:hover {
+  color: var(--admin-brand);
+}
+
+div.breadcrumbs {
+  background: transparent;
+  color: var(--admin-muted);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+div.breadcrumbs a {
+  color: var(--admin-brand);
+}
+
+#content-main .module,
+.module,
+.inline-group,
+fieldset {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+  background: #edf3ff;
+  color: var(--admin-text);
+}
+
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input,
+a.button {
+  background: var(--admin-brand);
+  border-color: var(--admin-brand);
+  color: #fff;
+  border-radius: 8px;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+.submit-row input:hover,
+a.button:hover {
+  background: var(--admin-brand-dark);
+  border-color: var(--admin-brand-dark);
+}
+
+table thead th {
+  background: #f2f6fc;
+  color: var(--admin-text);
+}
+
+table tr:nth-child(even) td {
+  background: #fafcff;
+}
+
+input,
+textarea,
+select {
+  border-radius: 8px;
+}

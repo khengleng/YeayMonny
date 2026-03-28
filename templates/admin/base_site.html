@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}YeayMonny Operator Admin{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'chat/admin.css' %}" />
+{% endblock %}
+
+{% block branding %}
+  <h1 id="site-name">
+    <a href="{% url 'admin:index' %}">YeayMonny Operator Admin</a>
+  </h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
