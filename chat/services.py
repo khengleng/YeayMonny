@@ -64,6 +64,13 @@ SHORT_RELEVANT_GUARD_PROMPT = """
 - កុំបន្ថែមព័ត៌មានមិនចាំបាច់
 - បើមិនមានទិន្នន័យគ្រប់គ្រាន់ សួរតែ១សំណួរខ្លីដើម្បីបញ្ជាក់
 """
+NATURAL_KHMER_FLOW_GUARD_PROMPT = """
+ចម្លើយត្រូវសូម្បីតែធម្មជាតិ
+- និយាយបែបជជែកធម្មតា ដូចមនុស្សពិត
+- កុំប្រើស្លាកទម្រង់រឹង ដូចជា [ពាក្យបើក] [ការមើល] [ពាក្យបិទ]
+- កុំឆ្លើយជាបញ្ជីរាយមុខរៀងរាល់លើក បើមិនចាំបាច់
+- សរសេរជាប្រយោគខ្លីៗ ១-២កថាខណ្ឌ ងាយអាន
+"""
 BIRTH_WEIGHT_SAFETY_PROMPT = """
 ច្បាប់ទម្ងន់កំណើត (សំខាន់)
 - "ទម្ងន់កំណើត" នៅទីនេះ ជាវិធីទស្សន៍ទាយបែបបុរាណ (liang/qian) ប៉ុណ្ណោះ
@@ -365,6 +372,7 @@ def _build_messages(
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
         {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
         {"role": "system", "content": SHORT_RELEVANT_GUARD_PROMPT.strip()},
+        {"role": "system", "content": NATURAL_KHMER_FLOW_GUARD_PROMPT.strip()},
         {"role": "system", "content": BIRTH_WEIGHT_SAFETY_PROMPT.strip()},
     ]
     for item in history_list:
@@ -586,7 +594,10 @@ def _enforce_grandchild_address(text: str) -> str:
 
 
 def _enforce_short_reply(text: str) -> str:
-    value = re.sub(r"\s+", " ", (text or "").strip())
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in raw.split("\n")]
+    value = "\n".join(line for line in lines if line)
+    value = re.sub(r"\n{3,}", "\n\n", value)
     if not value:
         return value
     limit = max(50, int(getattr(settings, "MAX_ASSISTANT_REPLY_CHARS", 1200)))
@@ -598,6 +609,15 @@ def _enforce_short_reply(text: str) -> str:
     if m:
         cut = cut[: m.start() + 1]
     return cut.rstrip() + "…"
+
+
+def _soften_template_structure(text: str) -> str:
+    value = (text or "").strip()
+    if not value:
+        return value
+    value = re.sub(r"\[(ពាក្យបើក|ការមើល|ពាក្យបិទ)\]\s*", "", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
 
 
 def _sanitize_birth_weight_language(text: str) -> str:
@@ -764,6 +784,7 @@ def get_yeay_monny_reply(
             rewritten = _rewrite_to_khmer_only(client=client, model_name=model_name, text=text)
             if rewritten and not _looks_non_khmer(rewritten):
                 rewritten = _enforce_grandchild_address(rewritten)
+                rewritten = _soften_template_structure(rewritten)
                 rewritten = _enforce_short_reply(rewritten)
                 rewritten = _sanitize_birth_weight_language(rewritten)
                 return _attach_calculation_basis(rewritten, user_profile)
@@ -781,6 +802,7 @@ def get_yeay_monny_reply(
             )
             if rewritten and not _looks_non_khmer(rewritten) and not _looks_repetitive_against_history(rewritten, history):
                 rewritten = _enforce_grandchild_address(rewritten)
+                rewritten = _soften_template_structure(rewritten)
                 rewritten = _enforce_short_reply(rewritten)
                 rewritten = _sanitize_birth_weight_language(rewritten)
                 return _attach_calculation_basis(rewritten, user_profile)
@@ -789,6 +811,7 @@ def get_yeay_monny_reply(
 
     if text:
         text = _enforce_grandchild_address(text)
+        text = _soften_template_structure(text)
         text = _enforce_short_reply(text)
         text = _sanitize_birth_weight_language(text)
         return _attach_calculation_basis(text, user_profile)

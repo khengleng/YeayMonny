@@ -642,6 +642,18 @@ class AssistantConfigServiceTests(TestCase):
         self.assertTrue(len(reply) <= 81)
         self.assertTrue(reply.endswith("…"))
 
+    def test_service_removes_rigid_template_markers(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(
+            output_text="[ពាក្យបើក]\nចៅអើយ នេះជាចម្លើយ។\n\n[ការមើល]\nសូមធ្វើបន្តិចម្តង។\n\n[ពាក្យបិទ]\nសូមមានចិត្តស្ងប់។"
+        )
+        history = [Message(role=Message.Role.USER, content="សួស្តី")]
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history)
+        self.assertNotIn("[ពាក្យបើក]", reply)
+        self.assertNotIn("[ការមើល]", reply)
+        self.assertNotIn("[ពាក្យបិទ]", reply)
+
 
 class FengShuiEngineTests(TestCase):
     def test_build_snapshot_includes_wofs_style_signals(self) -> None:
