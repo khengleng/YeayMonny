@@ -70,7 +70,12 @@ def extract_birth_parts(birth_info: str) -> tuple[int | None, int | None, int | 
             year = month = day = None
 
         if year and 1 <= month <= 12 and 1 <= day <= 31:
-            return year, month, day
+            try:
+                date(year, month, day)
+                return year, month, day
+            except ValueError:
+                # Invalid calendar day/month; fallback to year-only parse.
+                pass
 
     # Fallback year only
     years = re.findall(r"(19\d{2}|20\d{2})", text)

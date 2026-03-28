@@ -4,6 +4,8 @@ import hashlib
 from dataclasses import dataclass
 from datetime import date
 
+from django.utils import timezone
+
 from .astrology import extract_birth_parts
 from .fengshui import FengShuiSnapshot
 
@@ -46,7 +48,7 @@ def build_lucky_signs_snapshot(
     feng: FengShuiSnapshot | None,
     reference_date: date | None = None,
 ) -> LuckySignsSnapshot:
-    today = reference_date or date.today()
+    today = reference_date or timezone.localdate()
     year, month, day = extract_birth_parts(birth_info)
     seed_text = f"{year}-{month}-{day}|{question_focus}|{latest_user_text}|{today.isoformat()}"
     seed = _seed_int(seed_text)

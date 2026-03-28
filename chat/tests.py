@@ -22,7 +22,7 @@ from .compatibility import build_compatibility_snapshot
 from .financial_advisory import build_financial_advisory_snapshot
 from .lucky_signs import build_lucky_signs_snapshot
 from .birth_weight import build_birth_weight_snapshot
-from .astrology import build_astrology_snapshot
+from .astrology import build_astrology_snapshot, extract_birth_parts
 
 
 class ChatViewTests(TestCase):
@@ -625,6 +625,21 @@ class AstrologyEngineTests(TestCase):
     def test_age_is_none_when_full_date_missing(self) -> None:
         snap = build_astrology_snapshot("1980", reference_date=date(2026, 3, 28))
         self.assertIsNone(snap.age_years)
+
+    def test_invalid_calendar_date_falls_back_to_year_only(self) -> None:
+        year, month, day = extract_birth_parts("31-02-1998")
+        self.assertEqual(year, 1998)
+        self.assertIsNone(month)
+        self.assertIsNone(day)
+        snap = build_astrology_snapshot("31-02-1998", reference_date=date(2026, 3, 28))
+        self.assertIsNone(snap.age_years)
+
+    def test_khmer_digit_birth_date_is_parsed(self) -> None:
+        snap = build_astrology_snapshot("២២-០៣-១៩៨០", reference_date=date(2026, 3, 28))
+        self.assertEqual(snap.year, 1980)
+        self.assertEqual(snap.month, 3)
+        self.assertEqual(snap.day, 22)
+        self.assertEqual(snap.age_years, 46)
 
 
 class LuckySignsEngineTests(TestCase):

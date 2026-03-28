@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from django.utils import timezone
+
 from .astrology import extract_birth_parts
 
 HEAVENLY_STEMS_KM = [
@@ -216,7 +218,7 @@ def build_fengshui_snapshot(
     reference_year: int | None = None,
     partner_birth_info: str = "",
 ) -> FengShuiSnapshot:
-    year_for_chart = reference_year or date.today().year
+    year_for_chart = reference_year or timezone.localdate().year
     center_star = _annual_center_star(year_for_chart)
     annual_layout = _annual_layout(center_star)
     tai_sui_direction, sui_po_direction = _yearly_tai_sui(year_for_chart)
