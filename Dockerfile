@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 RUN chmod +x /app/docker/entrypoint.sh \
-    && python manage.py collectstatic --noinput
+    && SECRET_KEY=build-only-secret-key DEBUG=False python manage.py collectstatic --noinput
 
 EXPOSE 8080
 
