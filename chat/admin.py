@@ -47,6 +47,7 @@ class MessageAdmin(admin.ModelAdmin):
 
 @admin.register(AssistantConfig)
 class AssistantConfigAdmin(admin.ModelAdmin):
+    change_list_template = "admin/chat/assistantconfig/change_list.html"
     list_display = (
         "id",
         "model_name",

@@ -1,0 +1,31 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block result_list %}
+  <div class="assistant-config-vertical-list">
+    {% for obj in cl.result_list %}
+      <div class="assistant-config-card">
+        <h3>#{{ obj.id }} - {{ obj.model_name }}</h3>
+        <table class="assistant-config-vertical-table">
+          <tbody>
+            <tr><th>ID</th><td>{{ obj.id }}</td></tr>
+            <tr><th>Model name</th><td>{{ obj.model_name }}</td></tr>
+            <tr><th>Temperature</th><td>{{ obj.temperature }}</td></tr>
+            <tr><th>Enable fengshui engine</th><td>{{ obj.enable_fengshui_engine|yesno:"True,False" }}</td></tr>
+            <tr><th>Enable face reading engine</th><td>{{ obj.enable_face_reading_engine|yesno:"True,False" }}</td></tr>
+            <tr><th>Enable palm reading engine</th><td>{{ obj.enable_palm_reading_engine|yesno:"True,False" }}</td></tr>
+            <tr><th>Enable financial advisory engine</th><td>{{ obj.enable_financial_advisory_engine|yesno:"True,False" }}</td></tr>
+            <tr><th>Updated at</th><td>{{ obj.updated_at|date:"F j, Y, P" }}</td></tr>
+            <tr><th>Updated by</th><td>{{ obj.updated_by|default:"-" }}</td></tr>
+            <tr>
+              <th>{% trans "Actions" %}</th>
+              <td><a class="button" href="{{ obj.id }}/change/">{% trans "Edit" %}</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {% empty %}
+      <p>{% trans "No assistant configuration found." %}</p>
+    {% endfor %}
+  </div>
+{% endblock %}
