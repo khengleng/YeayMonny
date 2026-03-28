@@ -64,6 +64,13 @@ SHORT_RELEVANT_GUARD_PROMPT = """
 - កុំបន្ថែមព័ត៌មានមិនចាំបាច់
 - បើមិនមានទិន្នន័យគ្រប់គ្រាន់ សួរតែ១សំណួរខ្លីដើម្បីបញ្ជាក់
 """
+BIRTH_WEIGHT_SAFETY_PROMPT = """
+ច្បាប់ទម្ងន់កំណើត (សំខាន់)
+- "ទម្ងន់កំណើត" នៅទីនេះ ជាវិធីទស្សន៍ទាយបែបបុរាណ (liang/qian) ប៉ុណ្ណោះ
+- មិនមែនការពិនិត្យឆ្អឹង ឬពិនិត្យវេជ្ជសាស្ត្រ
+- កុំប្រើពាក្យដូចជា "ឆ្អឹងរឹងមាំ", "ឆ្អឹងខ្សោយ", "ជំងឺឆ្អឹង"
+- កុំធ្វើរោគវិនិច្ឆ័យសុខភាព
+"""
 KHMER_ONLY_FALLBACK = "ចៅអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 LUCKY_SIGNS_ON_DEMAND_PROMPT = """
 ច្បាប់សញ្ញាសំណាង
@@ -347,6 +354,7 @@ def _build_messages(
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
         {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
         {"role": "system", "content": SHORT_RELEVANT_GUARD_PROMPT.strip()},
+        {"role": "system", "content": BIRTH_WEIGHT_SAFETY_PROMPT.strip()},
     ]
     for item in history_list:
         messages.append({"role": item.role, "content": item.content})

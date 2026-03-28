@@ -16,7 +16,7 @@ from .fengshui import build_fengshui_snapshot
 from .house_numerology import build_house_numerology_snapshot
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 from .palm_reading import build_palm_reading_engine_notes
-from .services import KHMER_ONLY_FALLBACK, SHORT_RELEVANT_GUARD_PROMPT, get_yeay_monny_reply
+from .services import BIRTH_WEIGHT_SAFETY_PROMPT, KHMER_ONLY_FALLBACK, SHORT_RELEVANT_GUARD_PROMPT, get_yeay_monny_reply
 from .vehicle_numerology import build_vehicle_numerology_snapshot
 from .compatibility import build_compatibility_snapshot
 from .financial_advisory import build_financial_advisory_snapshot
@@ -386,6 +386,7 @@ class AssistantConfigServiceTests(TestCase):
         joined_system = "\n".join(item["content"] for item in kwargs["input"] if item["role"] == "system")
         self.assertIn("ច្បាប់ចម្លើយខ្លី និងចំប្រធានបទ", joined_system)
         self.assertIn(SHORT_RELEVANT_GUARD_PROMPT.strip(), joined_system)
+        self.assertIn(BIRTH_WEIGHT_SAFETY_PROMPT.strip(), joined_system)
 
     def test_service_injects_user_profile_context(self) -> None:
         mock_client = MagicMock()
