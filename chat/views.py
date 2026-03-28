@@ -49,6 +49,20 @@ def _is_valid_upload_size(file_obj, max_mb: int) -> bool:
     return bool(file_obj and file_obj.size <= max_mb * 1024 * 1024)
 
 
+def _rate_limit_hit(*, key: str, max_requests: int, window_seconds: int) -> bool:
+    if max_requests <= 0 or window_seconds <= 0:
+        return False
+    window = max(1, window_seconds)
+    if cache.add(key, 1, timeout=window):
+        return False
+    try:
+        current = cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=window)
+        current = 1
+    return int(current) > max_requests
+
+
 def _build_multimodal_user_content(
     *,
     user_text: str,
@@ -62,7 +76,10 @@ def _build_multimodal_user_content(
         blocks.append(f"អត្ថបទបានបម្លែងពីសម្លេង៖ {audio_transcript}")
     if image_summary:
         blocks.append(f"ការពិពណ៌នារូបភាពសម្រាប់មើលជោគជាតា៖ {image_summary}")
-    return "\n\n".join(blocks).strip()
+    content = "\n\n".join(blocks).strip()
+    if len(content) > settings.MAX_USER_MESSAGE_CHARS:
+        return content[: settings.MAX_USER_MESSAGE_CHARS]
+    return content
 
 
 def _build_telegram_multimodal_user_content(
@@ -89,7 +106,10 @@ def _build_telegram_multimodal_user_content(
     elif has_image:
         blocks.append("អ្នកប្រើបានផ្ញើរូបភាព ប៉ុន្តែប្រព័ន្ធមើលមិនទាន់ច្បាស់។")
 
-    return "\n\n".join(blocks).strip()
+    content = "\n\n".join(blocks).strip()
+    if len(content) > settings.MAX_USER_MESSAGE_CHARS:
+        return content[: settings.MAX_USER_MESSAGE_CHARS]
+    return content
 
 
 def _conversation_profile(conversation: Conversation) -> dict[str, str]:
@@ -279,6 +299,14 @@ def chat_home(request: HttpRequest) -> HttpResponse:
         image_summary = ""
         has_payload = bool(user_text or image_file or voice_file)
         if has_payload:
+            rate_key = f"chat_post:{request.session.session_key}:{request.META.get('REMOTE_ADDR', 'unknown')}"
+            if _rate_limit_hit(
+                key=rate_key,
+                max_requests=settings.CHAT_RATE_LIMIT_MAX_REQUESTS,
+                window_seconds=settings.CHAT_RATE_LIMIT_WINDOW_SECONDS,
+            ):
+                messages.error(request, "សំណើច្រើនពេក។ សូមរង់ចាំបន្តិចហើយសាកម្តងទៀត។")
+                return redirect("chat:home")
             name = (request.POST.get("name") or "").strip()
             birth_info = (request.POST.get("birth_info") or "").strip()
             question_focus = (request.POST.get("question_focus") or "").strip()
@@ -554,23 +582,40 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     if not chat_id:
         return JsonResponse({"ok": True})
 
+    if _rate_limit_hit(
+        key=f"tg_msg:{chat_id}",
+        max_requests=settings.TELEGRAM_RATE_LIMIT_MAX_REQUESTS,
+        window_seconds=settings.TELEGRAM_RATE_LIMIT_WINDOW_SECONDS,
+    ):
+        send_telegram_message(chat_id, "ចៅអើយ សំណើច្រើនពេក។ សូមរង់ចាំបន្តិចហើយសាកម្តងទៀត។")
+        return JsonResponse({"ok": True})
+
     audio_transcript = ""
     image_summary = ""
     has_voice = bool(voice_info or audio_info or video_note_info)
     has_image = bool(photo_list)
 
     if voice_info and voice_info.get("file_id"):
-        fetched = fetch_telegram_file(voice_info["file_id"])
+        fetched = fetch_telegram_file(
+            voice_info["file_id"],
+            max_bytes=settings.MAX_AUDIO_UPLOAD_MB * 1024 * 1024,
+        )
         if fetched:
             content, _content_type, filename = fetched
             audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
     elif audio_info and audio_info.get("file_id"):
-        fetched = fetch_telegram_file(audio_info["file_id"])
+        fetched = fetch_telegram_file(
+            audio_info["file_id"],
+            max_bytes=settings.MAX_AUDIO_UPLOAD_MB * 1024 * 1024,
+        )
         if fetched:
             content, _content_type, filename = fetched
             audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
     elif video_note_info and video_note_info.get("file_id"):
-        fetched = fetch_telegram_file(video_note_info["file_id"])
+        fetched = fetch_telegram_file(
+            video_note_info["file_id"],
+            max_bytes=settings.MAX_AUDIO_UPLOAD_MB * 1024 * 1024,
+        )
         if fetched:
             content, _content_type, filename = fetched
             audio_transcript = transcribe_audio_bytes(filename=filename, audio_bytes=content)
@@ -578,7 +623,10 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     if photo_list:
         best_photo = photo_list[-1]
         if best_photo.get("file_id"):
-            fetched = fetch_telegram_file(best_photo["file_id"])
+            fetched = fetch_telegram_file(
+                best_photo["file_id"],
+                max_bytes=settings.MAX_IMAGE_UPLOAD_MB * 1024 * 1024,
+            )
             if fetched:
                 content, content_type, filename = fetched
                 image_summary = analyze_image_bytes(
@@ -589,7 +637,10 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
                 )
     elif document_info.get("file_id") and str(document_info.get("mime_type", "")).startswith("image/"):
         has_image = True
-        fetched = fetch_telegram_file(document_info["file_id"])
+        fetched = fetch_telegram_file(
+            document_info["file_id"],
+            max_bytes=settings.MAX_IMAGE_UPLOAD_MB * 1024 * 1024,
+        )
         if fetched:
             content, content_type, filename = fetched
             image_summary = analyze_image_bytes(
@@ -703,7 +754,7 @@ def operator_export_contacts_csv(request: HttpRequest) -> HttpResponse:
 @login_required(login_url="chat:operator_login")
 @require_http_methods(["GET"])
 def operator_export_users_csv(request: HttpRequest) -> HttpResponse:
-    if not _has_operator_view_permission(request.user):
+    if not _can_manage_advanced_settings(request.user):
         return _operator_forbidden(request)
 
     query = (request.GET.get("q") or "").strip()

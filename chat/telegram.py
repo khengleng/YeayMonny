@@ -47,7 +47,7 @@ def _telegram_api_get(path: str) -> dict | None:
     return payload.get("result") or None
 
 
-def fetch_telegram_file(file_id: str) -> tuple[bytes, str, str] | None:
+def fetch_telegram_file(file_id: str, *, max_bytes: int | None = None) -> tuple[bytes, str, str] | None:
     file_meta = _telegram_api_get(f"getFile?file_id={file_id}")
     if not file_meta:
         return None
@@ -55,12 +55,18 @@ def fetch_telegram_file(file_id: str) -> tuple[bytes, str, str] | None:
     file_path = file_meta.get("file_path")
     if not file_path:
         return None
+    file_size = int(file_meta.get("file_size") or 0)
+    if max_bytes and file_size and file_size > max_bytes:
+        return None
 
     download_url = f"https://api.telegram.org/file/bot{settings.TELEGRAM_BOT_TOKEN}/{file_path}"
     try:
         with urllib.request.urlopen(download_url, timeout=settings.TELEGRAM_TIMEOUT_SECONDS) as response:
             content = response.read()
     except (urllib.error.URLError, TimeoutError):
+        return None
+
+    if max_bytes and len(content) > max_bytes:
         return None
 
     filename = file_path.split("/")[-1] or "telegram_file"

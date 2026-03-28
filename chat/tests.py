@@ -280,6 +280,11 @@ class OperatorPortalTests(TestCase):
         self.assertIn("web_123", body)
         self.assertIn("web@example.com", body)
 
+    def test_editor_cannot_export_all_users_csv(self) -> None:
+        self.client.login(username="editor", password="testpass123")
+        response = self.client.get(reverse("chat:operator_export_users_csv"))
+        self.assertEqual(response.status_code, 403)
+
     def test_operator_can_open_conversation_detail(self) -> None:
         conversation = Conversation.objects.create(session_key="abc123", name="Test User")
         Message.objects.create(conversation=conversation, role=Message.Role.USER, content="hello")
@@ -778,6 +783,26 @@ class TelegramWebhookTests(TestCase):
         self.assertEqual(Conversation.objects.filter(session_key="tg_123456").count(), 1)
         self.assertEqual(Message.objects.count(), 2)
         mock_send.assert_called_once_with(123456, "យាយសូមជូនពរ")
+
+    @override_settings(TELEGRAM_RATE_LIMIT_MAX_REQUESTS=1, TELEGRAM_RATE_LIMIT_WINDOW_SECONDS=60)
+    @patch("chat.views.send_telegram_message")
+    @patch("chat.views.get_yeay_monny_reply", return_value="យាយសូមជូនពរ")
+    def test_telegram_rate_limit_blocks_burst(self, _mock_reply, mock_send) -> None:
+        payload = {
+            "message": {
+                "chat": {"id": 654321},
+                "text": "សួស្តី",
+            }
+        }
+        headers = {
+            "content_type": "application/json",
+            "HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN": "secret-token",
+        }
+        first = self.client.post(reverse("chat:telegram_webhook"), data=json.dumps(payload), **headers)
+        second = self.client.post(reverse("chat:telegram_webhook"), data=json.dumps(payload), **headers)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(mock_send.call_count >= 2)
 
     def test_telegram_webhook_rejects_invalid_secret(self) -> None:
         payload = {"message": {"chat": {"id": 1}, "text": "hello"}}
