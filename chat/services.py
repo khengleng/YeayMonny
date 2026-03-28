@@ -7,6 +7,7 @@ import re
 from typing import Iterable
 
 from django.conf import settings
+from django.utils import timezone
 from openai import OpenAI
 from openai import OpenAIError
 
@@ -339,6 +340,50 @@ def _build_messages(
     return messages
 
 
+ASCII_TO_KHMER_DIGITS = str.maketrans("0123456789", "០១២៣៤៥៦៧៨៩")
+
+
+def _khmer_num(value: str) -> str:
+    return value.translate(ASCII_TO_KHMER_DIGITS)
+
+
+def _build_calculation_basis_line(user_profile: dict[str, str] | None) -> str:
+    profile = user_profile or {}
+    birth_info = (profile.get("birth_info") or "").strip()
+    ref_date = timezone.localdate()
+    ref_text = _khmer_num(f"{ref_date.day:02d}-{ref_date.month:02d}-{ref_date.year}")
+    snapshot = build_astrology_snapshot(birth_info, reference_date=ref_date)
+
+    if snapshot.year and snapshot.month and snapshot.day:
+        dob_text = _khmer_num(f"{snapshot.day:02d}-{snapshot.month:02d}-{snapshot.year}")
+        if snapshot.age_years is not None:
+            age_text = _khmer_num(str(snapshot.age_years))
+            return f"មូលដ្ឋានគណនា៖ ថ្ងៃកំណើត {dob_text} | ថ្ងៃយោង {ref_text} | អាយុគណនា {age_text} ឆ្នាំ"
+        return f"មូលដ្ឋានគណនា៖ ថ្ងៃកំណើត {dob_text} | ថ្ងៃយោង {ref_text}"
+
+    if snapshot.year:
+        year_text = _khmer_num(str(snapshot.year))
+        return (
+            f"មូលដ្ឋានគណនា៖ មានតែឆ្នាំកំណើត {year_text} | ថ្ងៃយោង {ref_text} | "
+            "សូមផ្តល់ថ្ងៃ-ខែ-ឆ្នាំកំណើតពេញ ដើម្បីគណនាអាយុឱ្យត្រឹមត្រូវ"
+        )
+
+    return (
+        f"មូលដ្ឋានគណនា៖ មិនទាន់មានថ្ងៃខែឆ្នាំកំណើតពេញ | ថ្ងៃយោង {ref_text} | "
+        "សូមផ្តល់ថ្ងៃ-ខែ-ឆ្នាំកំណើត ដើម្បីគណនាឱ្យច្បាស់"
+    )
+
+
+def _attach_calculation_basis(text: str, user_profile: dict[str, str] | None) -> str:
+    content = (text or "").strip()
+    if not content:
+        return content
+    basis = _build_calculation_basis_line(user_profile)
+    if "មូលដ្ឋានគណនា" in content:
+        return content
+    return f"{content}\n\n{basis}"
+
+
 def _build_openai_client() -> OpenAI:
     return OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_TIMEOUT_SECONDS)
 
@@ -601,7 +646,8 @@ def get_yeay_monny_reply(
         try:
             rewritten = _rewrite_to_khmer_only(client=client, model_name=model_name, text=text)
             if rewritten and not _looks_non_khmer(rewritten):
-                return _enforce_grandchild_address(rewritten)
+                rewritten = _enforce_grandchild_address(rewritten)
+                return _attach_calculation_basis(rewritten, user_profile)
         except OpenAIError:
             return KHMER_ONLY_FALLBACK
         return KHMER_ONLY_FALLBACK
@@ -615,10 +661,12 @@ def get_yeay_monny_reply(
                 history=history,
             )
             if rewritten and not _looks_non_khmer(rewritten) and not _looks_repetitive_against_history(rewritten, history):
-                return _enforce_grandchild_address(rewritten)
+                rewritten = _enforce_grandchild_address(rewritten)
+                return _attach_calculation_basis(rewritten, user_profile)
         except OpenAIError:
             pass
 
     if text:
-        return _enforce_grandchild_address(text)
+        text = _enforce_grandchild_address(text)
+        return _attach_calculation_basis(text, user_profile)
     return "យាយសូមអភ័យទោស ចៅអើយ។ យាយមិនទាន់អាចឆ្លើយបានច្បាស់ទេ សូមសួរម្តងទៀត។"
