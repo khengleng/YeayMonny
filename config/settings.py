@@ -36,6 +36,16 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
+# Auto-trust Railway/public HTTPS domains to reduce operator misconfiguration issues.
+for _host in ALLOWED_HOSTS:
+    if _host in {"localhost", "127.0.0.1"} or ":" in _host:
+        continue
+    if "." not in _host:
+        continue
+    _origin = f"https://{_host}"
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -139,13 +149,19 @@ SECURE_SSL_REDIRECT = os.getenv(
     "on",
 }
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "86400" if not DEBUG else "0"))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "False").lower() in {
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    "False" if DEBUG else "True",
+).lower() in {
     "1",
     "true",
     "yes",
     "on",
 }
-SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() in {
+SECURE_HSTS_PRELOAD = os.getenv(
+    "SECURE_HSTS_PRELOAD",
+    "False" if DEBUG else "True",
+).lower() in {
     "1",
     "true",
     "yes",

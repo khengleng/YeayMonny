@@ -286,7 +286,7 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
     }
 
 
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "POST", "HEAD"])
 def chat_home(request: HttpRequest) -> HttpResponse:
     conversation = _get_or_create_conversation(request)
 
