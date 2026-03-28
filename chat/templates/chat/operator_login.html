@@ -7,32 +7,33 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      .wrap { max-width: 480px; margin: 48px auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+      .wrap { max-width: 480px; padding: 24px; }
       h1 { margin-top: 0; }
       label { display: block; margin-top: 12px; font-weight: 600; }
-      .wrap { background: var(--op-surface); border: 1px solid var(--op-border); color: var(--op-text); }
       button { margin-top: 16px; width: 100%; }
       .err { color: #b42318; margin-top: 8px; }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <h1>ចូលប្រើផ្ទាំងគ្រប់គ្រង</h1>
-      <p>សូមចូលដោយគណនី Operator ដើម្បីកែការកំណត់របស់យាយមុន្នី។</p>
-      {% if messages %}
-        {% for message in messages %}
-          <div class="err">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-      <form method="post">
-        {% csrf_token %}
-        {{ form.non_field_errors }}
-        <label for="id_username">ឈ្មោះគណនី ឬអ៊ីមែល</label>
-        {{ form.username }}
-        <label for="id_password">ពាក្យសម្ងាត់</label>
-        {{ form.password }}
-        <button class="primary" type="submit">ចូលប្រើ</button>
-      </form>
-    </div>
+    <main class="page">
+      <section class="card wrap">
+        <h1>ចូលប្រើផ្ទាំងគ្រប់គ្រង</h1>
+        <p>សូមចូលដោយគណនី Operator ដើម្បីកែការកំណត់របស់យាយមុន្នី។</p>
+        {% if messages %}
+          {% for message in messages %}
+            <div class="err">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          <label for="id_username">ឈ្មោះគណនី ឬអ៊ីមែល</label>
+          {{ form.username }}
+          <label for="id_password">ពាក្យសម្ងាត់</label>
+          {{ form.password }}
+          <button class="primary" type="submit">ចូលប្រើ</button>
+        </form>
+      </section>
+    </main>
   </body>
 </html>

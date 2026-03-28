@@ -7,7 +7,7 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      .wrap { max-width: 680px; margin: 60px auto; padding: 0 16px; }
+      .wrap { max-width: 680px; padding: 24px; }
       .card { padding: 24px; }
       h1 { margin-top: 0; }
       .msg { padding: 12px; }
@@ -16,8 +16,8 @@
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="card">
+    <main class="page">
+      <div class="wrap card">
         <h1>មិនមានសិទ្ធិប្រើផ្ទាំងប្រតិបត្តិការ</h1>
         <div class="msg">គណនីរបស់អ្នកមិនទាន់មានសិទ្ធិ Operator ទេ។ សូមអោយ Prompt Admin ឬ Super Admin បន្ថែមសិទ្ធិជាមុនសិន។</div>
         <div class="actions">
@@ -26,6 +26,6 @@
           <a href="/admin/">ទៅ Fortune Telling Admin</a>
         </div>
       </div>
-    </div>
+    </main>
   </body>
 </html>

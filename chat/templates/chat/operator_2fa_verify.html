@@ -7,12 +7,12 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      .wrap { max-width: 520px; margin-top: 40px; }
+      .wrap { max-width: 520px; }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="card">
+    <main class="page">
+      <div class="wrap card">
         <h1>បញ្ជាក់ 2FA</h1>
         <p class="muted">គណនី: {{ username }}</p>
         {% if messages %}
@@ -27,6 +27,6 @@
           <button class="primary" type="submit">បន្តចូលប្រើ</button>
         </form>
       </div>
-    </div>
+    </main>
   </body>
 </html>

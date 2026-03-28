@@ -7,7 +7,7 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+      .wrap { max-width: 980px; }
       h1 { margin: 0 0 10px; }
       .meta { color: var(--op-muted); margin-bottom: 16px; }
       .row { border: 1px solid var(--op-border); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--op-surface); }
@@ -23,8 +23,8 @@
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <div class="card">
+    <main class="page page-top">
+      <div class="wrap card">
         <div class="top">
           <h1>សន្ទនាលម្អិត</h1>
           <div class="actions">
@@ -54,6 +54,6 @@
           {% endif %}
         </div>
       </div>
-    </div>
+    </main>
   </body>
 </html>
