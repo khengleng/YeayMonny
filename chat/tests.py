@@ -379,6 +379,7 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("Compatibility Engine", profile_block)
         self.assertIn("Financial Advisory Engine", profile_block)
         self.assertIn("Dynamic Lucky Signs", profile_block)
+        self.assertIn("ឆ្នាំបច្ចុប្បន្នសម្រាប់គណនា", profile_block)
 
     def test_reply_always_contains_calculation_basis_with_full_dob(self) -> None:
         mock_client = MagicMock()
