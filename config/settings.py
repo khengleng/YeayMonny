@@ -28,6 +28,10 @@ if railway_domain := os.getenv("RAILWAY_PUBLIC_DOMAIN"):
 if railway_private_domain := os.getenv("RAILWAY_PRIVATE_DOMAIN"):
     ALLOWED_HOSTS.append(railway_private_domain)
 
+if os.getenv("RAILWAY_ENVIRONMENT") or railway_domain or railway_private_domain:
+    # Railway health checks and edge routing may use internal hostnames.
+    ALLOWED_HOSTS.extend([".railway.app", ".railway.internal"])
+
 ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 CSRF_TRUSTED_ORIGINS = [
