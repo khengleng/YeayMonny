@@ -316,6 +316,57 @@
         </div>
 
         <div class="section">
+          <h2>បញ្ជីអ្នកប្រើទាំងអស់</h2>
+          <p class="muted">តារាងនេះបង្ហាញអ្នកប្រើទាំង Web និង Telegram ដែលកំពុងប្រើប្រព័ន្ធ។</p>
+          <a class="btn" href="{% url 'chat:operator_export_users_csv' %}{% if query %}?q={{ query|urlencode }}{% endif %}">ទាញយក CSV អ្នកប្រើទាំងអស់</a>
+          {% if users_page %}
+            <table>
+              <thead>
+                <tr>
+                  <th>លេខសម័យ</th>
+                  <th>ប្រភេទ</th>
+                  <th>ឈ្មោះ</th>
+                  <th>ទំនាក់ទំនង</th>
+                  <th>សារអ្នកប្រើ</th>
+                  <th>សារយាយ</th>
+                  <th>សារសរុប</th>
+                  <th>ពេលប្រើចុងក្រោយ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users_page %}
+                  <tr>
+                    <td><a class="link" href="{% url 'chat:operator_conversation_detail' u.id %}">{{ u.session_key }}</a></td>
+                    <td>{% if u.session_key|slice:":3" == "tg_" %}Telegram{% else %}Web{% endif %}</td>
+                    <td>{{ u.name|default:"-" }}</td>
+                    <td>
+                      {{ u.contact_email|default:"-" }}<br />
+                      {{ u.contact_phone|default:"-" }}<br />
+                      {{ u.telegram_username|default:"-" }}
+                    </td>
+                    <td>{{ u.user_messages_count|default:0 }}</td>
+                    <td>{{ u.assistant_messages_count|default:0 }}</td>
+                    <td>{{ u.messages_count|default:0 }}</td>
+                    <td>{% if u.last_message_at %}{{ u.last_message_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="pager">
+              {% if users_page.has_previous %}
+                <a href="?users_page={{ users_page.previous_page_number }}&conversation_page={{ recent_conversations.number }}&message_page={{ recent_messages.number }}&history_page={{ history_entries.number }}&q={{ query|urlencode }}">មុន</a>
+              {% endif %}
+              <span class="muted">ទំព័រ {{ users_page.number }} / {{ users_page.paginator.num_pages }}</span>
+              {% if users_page.has_next %}
+                <a href="?users_page={{ users_page.next_page_number }}&conversation_page={{ recent_conversations.number }}&message_page={{ recent_messages.number }}&history_page={{ history_entries.number }}&q={{ query|urlencode }}">បន្ទាប់</a>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="empty">មិនទាន់មានអ្នកប្រើទេ។</div>
+          {% endif %}
+        </div>
+
+        <div class="section">
           <h2>សារថ្មីៗ</h2>
           {% if recent_messages %}
             <table>

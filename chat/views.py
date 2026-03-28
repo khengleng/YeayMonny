@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
+from django.core.cache import cache
 from django.db import models
 from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
@@ -105,8 +106,29 @@ class OperatorLoginView(LoginView):
     next_page = reverse_lazy("chat:operator_dashboard")
     authentication_form = OperatorAuthenticationForm
 
+    def _bucket_key(self, username: str) -> str:
+        ip = (self.request.META.get("REMOTE_ADDR") or "").strip() or "unknown"
+        normalized = (username or "").strip().lower() or "unknown"
+        return f"operator_login_fail:{ip}:{normalized}"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == "POST":
+            raw_username = (request.POST.get("username") or "").strip()
+            key = self._bucket_key(raw_username)
+            fail_count = int(cache.get(key, 0) or 0)
+            if fail_count >= settings.OPERATOR_LOGIN_MAX_ATTEMPTS:
+                form = self.get_form()
+                form.add_error(
+                    None,
+                    "សុំព្យាយាមច្រើនពេក។ សូមរង់ចាំបន្តិចហើយសាកម្តងទៀត។",
+                )
+                return self.render_to_response(self.get_context_data(form=form), status=429)
+        return super().dispatch(request, *args, **kwargs)
+
     def form_valid(self, form):
         response = super().form_valid(form)
+        raw_username = (self.request.POST.get("username") or "").strip()
+        cache.delete(self._bucket_key(raw_username))
         user = self.request.user
         if not _has_operator_view_permission(user):
             logout(self.request)
@@ -116,6 +138,17 @@ class OperatorLoginView(LoginView):
             )
             return redirect("chat:operator_login")
         return response
+
+    def form_invalid(self, form):
+        raw_username = (self.request.POST.get("username") or "").strip()
+        key = self._bucket_key(raw_username)
+        window = max(60, settings.OPERATOR_LOGIN_WINDOW_SECONDS)
+        if cache.add(key, 1, timeout=window) is False:
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, 1, timeout=window)
+        return super().form_invalid(form)
 
 
 @require_http_methods(["POST"])
@@ -190,6 +223,15 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         Message.objects.select_related("conversation").order_by("-created_at"),
         20,
     ).get_page(request.GET.get("message_page"))
+    users_page = Paginator(
+        conversations_qs.annotate(
+            messages_count=models.Count("messages"),
+            user_messages_count=models.Count("messages", filter=models.Q(messages__role=Message.Role.USER)),
+            assistant_messages_count=models.Count("messages", filter=models.Q(messages__role=Message.Role.ASSISTANT)),
+            last_message_at=models.Max("messages__created_at"),
+        ).order_by("-updated_at"),
+        30,
+    ).get_page(request.GET.get("users_page"))
     since_24h = timezone.now() - timedelta(hours=24)
     contacts_qs = Conversation.objects.filter(marketing_opt_in=True).exclude(
         contact_email="",
@@ -211,6 +253,7 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         "query": query,
         "recent_conversations": recent_conversations,
         "recent_messages": recent_messages,
+        "users_page": users_page,
         "total_conversations": Conversation.objects.count(),
         "total_messages": Message.objects.count(),
         "messages_24h": Message.objects.filter(created_at__gte=since_24h).count(),
@@ -477,10 +520,16 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
     if not settings.TELEGRAM_BOT_TOKEN:
         return JsonResponse({"ok": False, "error": "telegram bot token is not configured"}, status=503)
 
+    if not settings.DEBUG and not settings.TELEGRAM_WEBHOOK_SECRET:
+        return JsonResponse({"ok": False, "error": "telegram webhook secret is required in production"}, status=503)
+
     if settings.TELEGRAM_WEBHOOK_SECRET:
         given_secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
         if given_secret != settings.TELEGRAM_WEBHOOK_SECRET:
             return HttpResponseForbidden("Invalid Telegram webhook secret")
+
+    if len(request.body) > settings.DATA_UPLOAD_MAX_MEMORY_SIZE:
+        return JsonResponse({"ok": False, "error": "payload too large"}, status=413)
 
     try:
         update = json.loads(request.body.decode("utf-8"))
@@ -646,6 +695,77 @@ def operator_export_contacts_csv(request: HttpRequest) -> HttpResponse:
                 "yes" if convo.marketing_opt_in else "no",
                 convo.marketing_opt_in_at.isoformat() if convo.marketing_opt_in_at else "",
                 convo.updated_at.isoformat(),
+            ]
+        )
+    return response
+
+
+@login_required(login_url="chat:operator_login")
+@require_http_methods(["GET"])
+def operator_export_users_csv(request: HttpRequest) -> HttpResponse:
+    if not _has_operator_view_permission(request.user):
+        return _operator_forbidden(request)
+
+    query = (request.GET.get("q") or "").strip()
+    users_qs = Conversation.objects.all()
+    if query:
+        users_qs = users_qs.filter(
+            models.Q(session_key__icontains=query)
+            | models.Q(name__icontains=query)
+            | models.Q(contact_email__icontains=query)
+            | models.Q(contact_phone__icontains=query)
+            | models.Q(telegram_username__icontains=query)
+            | models.Q(question_focus__icontains=query)
+        )
+    users_qs = users_qs.annotate(
+        messages_count=models.Count("messages"),
+        user_messages_count=models.Count("messages", filter=models.Q(messages__role=Message.Role.USER)),
+        assistant_messages_count=models.Count("messages", filter=models.Q(messages__role=Message.Role.ASSISTANT)),
+        last_message_at=models.Max("messages__created_at"),
+    ).order_by("-updated_at")
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="yeaymonny_users.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "session_key",
+            "channel",
+            "name",
+            "birth_info",
+            "question_focus",
+            "contact_email",
+            "contact_phone",
+            "telegram_username",
+            "marketing_opt_in",
+            "messages_count",
+            "user_messages_count",
+            "assistant_messages_count",
+            "last_message_at",
+            "created_at",
+            "updated_at",
+        ]
+    )
+    for user in users_qs:
+        channel = "telegram" if str(user.session_key).startswith("tg_") else "web"
+        writer.writerow(
+            [
+                user.session_key,
+                channel,
+                user.name,
+                user.birth_info,
+                user.question_focus,
+                user.contact_email,
+                user.contact_phone,
+                user.telegram_username,
+                "yes" if user.marketing_opt_in else "no",
+                user.messages_count or 0,
+                user.user_messages_count or 0,
+                user.assistant_messages_count or 0,
+                user.last_message_at.isoformat() if user.last_message_at else "",
+                user.created_at.isoformat(),
+                user.updated_at.isoformat(),
             ]
         )
     return response

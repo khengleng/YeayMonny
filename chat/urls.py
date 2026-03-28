@@ -7,6 +7,7 @@ from .views import (
     operator_conversation_detail,
     operator_dashboard,
     operator_export_contacts_csv,
+    operator_export_users_csv,
     operator_logout,
     telegram_webhook,
 )
@@ -18,6 +19,7 @@ urlpatterns = [
     path("operator/logout/", operator_logout, name="operator_logout"),
     path("operator/", operator_dashboard, name="operator_dashboard"),
     path("operator/contacts/export.csv", operator_export_contacts_csv, name="operator_export_contacts_csv"),
+    path("operator/users/export.csv", operator_export_users_csv, name="operator_export_users_csv"),
     path(
         "operator/conversations/<uuid:conversation_id>/",
         operator_conversation_detail,

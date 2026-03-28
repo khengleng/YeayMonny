@@ -1,12 +1,20 @@
 import os
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key-change-me")
-
 DEBUG = os.getenv("DEBUG", "False").lower() in {"1", "true", "yes", "on"}
+RUNNING_TESTS = "test" in sys.argv
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    if DEBUG or RUNNING_TESTS:
+        SECRET_KEY = "django-insecure-dev-key-change-me"
+    else:
+        raise ImproperlyConfigured("SECRET_KEY is required when DEBUG=False")
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -20,9 +28,7 @@ if railway_domain := os.getenv("RAILWAY_PUBLIC_DOMAIN"):
 if railway_private_domain := os.getenv("RAILWAY_PRIVATE_DOMAIN"):
     ALLOWED_HOSTS.append(railway_private_domain)
 
-# Railway health checks can use internal host headers that are not always predictable.
-if os.getenv("RAILWAY_ENVIRONMENT"):
-    ALLOWED_HOSTS.append("*")
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -118,13 +124,39 @@ USE_TZ = True
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SECURE = not DEBUG
-SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() in {
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
+SECURE_SSL_REDIRECT = os.getenv(
+    "SECURE_SSL_REDIRECT",
+    "False" if DEBUG or RUNNING_TESTS else "True",
+).lower() in {
     "1",
     "true",
     "yes",
     "on",
 }
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "86400" if not DEBUG else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "False").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = os.getenv("SECURE_REFERRER_POLICY", "same-origin")
+SECURE_CROSS_ORIGIN_OPENER_POLICY = os.getenv("SECURE_CROSS_ORIGIN_OPENER_POLICY", "same-origin")
+X_FRAME_OPTIONS = os.getenv("X_FRAME_OPTIONS", "DENY")
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(20 * 1024 * 1024)))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", str(20 * 1024 * 1024)))
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -147,6 +179,8 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
 TELEGRAM_WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
 TELEGRAM_TIMEOUT_SECONDS = int(os.getenv("TELEGRAM_TIMEOUT_SECONDS", "15"))
+OPERATOR_LOGIN_MAX_ATTEMPTS = int(os.getenv("OPERATOR_LOGIN_MAX_ATTEMPTS", "5"))
+OPERATOR_LOGIN_WINDOW_SECONDS = int(os.getenv("OPERATOR_LOGIN_WINDOW_SECONDS", "900"))
 
 telegram_webhook_path = os.getenv("TELEGRAM_WEBHOOK_PATH", "/webhooks/telegram/").strip()
 if not telegram_webhook_path.startswith("/"):

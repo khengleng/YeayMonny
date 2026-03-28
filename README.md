@@ -115,6 +115,12 @@ python manage.py runserver
 - `MAX_IMAGE_UPLOAD_MB`
 - `MAX_AUDIO_UPLOAD_MB`
 - `TIME_ZONE`
+- `SECURE_SSL_REDIRECT`
+- `SECURE_HSTS_SECONDS`
+- `SECURE_HSTS_INCLUDE_SUBDOMAINS`
+- `SECURE_HSTS_PRELOAD`
+- `OPERATOR_LOGIN_MAX_ATTEMPTS`
+- `OPERATOR_LOGIN_WINDOW_SECONDS`
 
 ## Railway deployment
 
@@ -196,6 +202,7 @@ The `/operator/` portal is not only for prompt editing. It now includes:
 - Live operations metrics (total conversations, total messages, last 24h activity)
 - Integration readiness status (OpenAI and Telegram)
 - Conversation monitoring with search and pagination
+- Full user directory (web + Telegram) with usage counters and CSV export
 - Recent message feed with links to full conversation transcript
 - Dedicated conversation detail page for support review
 

@@ -259,6 +259,27 @@ class OperatorPortalTests(TestCase):
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
         self.assertIn("user@example.com", response.content.decode("utf-8"))
 
+    def test_operator_can_export_all_users_csv(self) -> None:
+        Conversation.objects.create(
+            session_key="tg_999",
+            name="Tele User",
+            telegram_username="@teleuser",
+        )
+        Conversation.objects.create(
+            session_key="web_123",
+            name="Web User",
+            contact_email="web@example.com",
+        )
+        self.client.login(username="admin", password="testpass123")
+        response = self.client.get(reverse("chat:operator_export_users_csv"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        body = response.content.decode("utf-8")
+        self.assertIn("tg_999", body)
+        self.assertIn("telegram", body)
+        self.assertIn("web_123", body)
+        self.assertIn("web@example.com", body)
+
     def test_operator_can_open_conversation_detail(self) -> None:
         conversation = Conversation.objects.create(session_key="abc123", name="Test User")
         Message.objects.create(conversation=conversation, role=Message.Role.USER, content="hello")
@@ -320,6 +341,14 @@ class OperatorPortalTests(TestCase):
                 change_reason=AssistantConfigHistory.ChangeReason.ROLLBACK
             ).exists()
         )
+
+    @override_settings(OPERATOR_LOGIN_MAX_ATTEMPTS=2, OPERATOR_LOGIN_WINDOW_SECONDS=600)
+    def test_operator_login_rate_limit_blocks_repeated_failures(self) -> None:
+        url = reverse("chat:operator_login")
+        self.client.post(url, {"username": "admin", "password": "wrong-1"})
+        self.client.post(url, {"username": "admin", "password": "wrong-2"})
+        blocked = self.client.post(url, {"username": "admin", "password": "wrong-3"})
+        self.assertEqual(blocked.status_code, 429)
 
 
 @override_settings(
