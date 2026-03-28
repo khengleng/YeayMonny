@@ -544,6 +544,18 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("ចៅ", reply)
         self.assertEqual(mock_client.responses.create.call_count, 2)
 
+    @override_settings(MAX_ASSISTANT_REPLY_CHARS=80)
+    def test_service_enforces_short_reply_length(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(
+            output_text="ចៅអើយ " + ("ការណែនាំ " * 40)
+        )
+        history = [Message(role=Message.Role.USER, content="សួរស្តី")]
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history)
+        self.assertTrue(len(reply) <= 81)
+        self.assertTrue(reply.endswith("…"))
+
 
 class FengShuiEngineTests(TestCase):
     def test_build_snapshot_includes_wofs_style_signals(self) -> None:

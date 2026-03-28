@@ -545,6 +545,21 @@ def _enforce_grandchild_address(text: str) -> str:
     return value
 
 
+def _enforce_short_reply(text: str) -> str:
+    value = re.sub(r"\s+", " ", (text or "").strip())
+    if not value:
+        return value
+    limit = max(50, int(getattr(settings, "MAX_ASSISTANT_REPLY_CHARS", 1200)))
+    if len(value) <= limit:
+        return value
+    cut = value[:limit]
+    # Prefer cutting at Khmer/latin sentence punctuation for readability.
+    m = re.search(r"[។!?]\s+[^។!?]*$", cut)
+    if m:
+        cut = cut[: m.start() + 1]
+    return cut.rstrip() + "…"
+
+
 def _rewrite_to_khmer_only(*, client: OpenAI, model_name: str, text: str) -> str:
     response = client.responses.create(
         model=model_name,
@@ -672,6 +687,7 @@ def get_yeay_monny_reply(
             rewritten = _rewrite_to_khmer_only(client=client, model_name=model_name, text=text)
             if rewritten and not _looks_non_khmer(rewritten):
                 rewritten = _enforce_grandchild_address(rewritten)
+                rewritten = _enforce_short_reply(rewritten)
                 return _attach_calculation_basis(rewritten, user_profile)
         except OpenAIError:
             return KHMER_ONLY_FALLBACK
@@ -687,11 +703,13 @@ def get_yeay_monny_reply(
             )
             if rewritten and not _looks_non_khmer(rewritten) and not _looks_repetitive_against_history(rewritten, history):
                 rewritten = _enforce_grandchild_address(rewritten)
+                rewritten = _enforce_short_reply(rewritten)
                 return _attach_calculation_basis(rewritten, user_profile)
         except OpenAIError:
             pass
 
     if text:
         text = _enforce_grandchild_address(text)
+        text = _enforce_short_reply(text)
         return _attach_calculation_basis(text, user_profile)
     return "យាយសូមអភ័យទោស ចៅអើយ។ យាយមិនទាន់អាចឆ្លើយបានច្បាស់ទេ សូមសួរម្តងទៀត។"
