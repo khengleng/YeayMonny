@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -164,3 +165,52 @@ class AssistantConfigHistory(models.Model):
             changed_by=changed_by,
             change_reason=change_reason,
         )
+
+
+class OperatorSecurityProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="operator_security_profile",
+    )
+    otp_secret = models.CharField(max_length=64, blank=True)
+    is_otp_enabled = models.BooleanField(default=False)
+    last_verified_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Operator Security Profile"
+        verbose_name_plural = "Operator Security Profiles"
+
+    def __str__(self) -> str:
+        return f"Security Profile: {self.user.username}"
+
+
+class BroadcastCampaign(models.Model):
+    class Channel(models.TextChoices):
+        TELEGRAM = "telegram", "Telegram"
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+
+    title = models.CharField(max_length=200)
+    channel = models.CharField(max_length=20, choices=Channel.choices, default=Channel.TELEGRAM)
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    recipient_count = models.PositiveIntegerField(default=0)
+    success_count = models.PositiveIntegerField(default=0)
+    failure_count = models.PositiveIntegerField(default=0)
+    error_log = models.TextField(blank=True)
+    created_by = models.CharField(max_length=150, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Broadcast Campaign"
+        verbose_name_plural = "Broadcast Campaigns"
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.get_status_display()})"

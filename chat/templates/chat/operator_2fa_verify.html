@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>បញ្ជាក់ 2FA | ផ្ទាំងអ្នកគ្រប់គ្រង</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
+    <style>
+      .wrap { max-width: 520px; margin-top: 40px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>បញ្ជាក់ 2FA</h1>
+        <p class="muted">គណនី: {{ username }}</p>
+        {% if messages %}
+          {% for message in messages %}
+            <div class="msg">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <label for="id_otp_code">{{ form.otp_code.label }}</label>
+          {{ form.otp_code }}
+          <button class="primary" type="submit">បន្តចូលប្រើ</button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

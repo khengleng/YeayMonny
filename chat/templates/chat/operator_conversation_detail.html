@@ -4,22 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>សន្ទនាលម្អិត | ផ្ទាំងប្រតិបត្តិការ</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      body { font-family: "Noto Sans Khmer", sans-serif; margin: 0; background: #f5f7fb; color: #1d2633; }
       .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
-      .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
       h1 { margin: 0 0 10px; }
-      .meta { color: #5c6978; margin-bottom: 16px; }
-      .row { border: 1px solid #e6ecf3; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+      .meta { color: var(--op-muted); margin-bottom: 16px; }
+      .row { border: 1px solid var(--op-border); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--op-surface); }
       .role { font-weight: 700; margin-bottom: 6px; }
       .assistant { border-left: 4px solid #2f7d32; }
       .user { border-left: 4px solid #1f6feb; }
       .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-      a.btn { text-decoration: none; color: #1f6feb; margin-left: 10px; }
+      a.btn { text-decoration: none; color: var(--op-brand); margin-left: 10px; }
       .actions { display: flex; align-items: center; }
       .pager { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
-      .pager a { text-decoration: none; color: #1f6feb; }
-      .muted { color: #5c6978; }
+      .pager a { text-decoration: none; color: var(--op-brand); }
+      .muted { color: var(--op-muted); }
     </style>
   </head>
   <body>
@@ -29,7 +29,7 @@
           <h1>សន្ទនាលម្អិត</h1>
           <div class="actions">
             <a class="btn" href="{% url 'chat:operator_dashboard' %}">ត្រឡប់ទៅផ្ទាំងប្រតិបត្តិការ</a>
-            <a class="btn" href="/admin/">Django Admin</a>
+            <a class="btn" href="/admin/">Fortune Telling Admin</a>
           </div>
         </div>
         <div class="meta">

@@ -1,9 +1,11 @@
 import csv
 import json
 from datetime import timedelta
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
@@ -22,9 +24,19 @@ from .forms import (
     AssistantAdvancedSettingsForm,
     AssistantEngineSettingsForm,
     AssistantPromptForm,
+    BroadcastCampaignForm,
     OperatorAuthenticationForm,
+    OperatorOTPForm,
 )
-from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
+from .models import (
+    AssistantConfig,
+    AssistantConfigHistory,
+    BroadcastCampaign,
+    Conversation,
+    Message,
+    OperatorSecurityProfile,
+)
+from .security import generate_totp_secret, verify_totp_code
 from .services import analyze_image_bytes, get_yeay_monny_reply, transcribe_audio_bytes
 from .telegram import fetch_telegram_file, send_telegram_message
 
@@ -43,6 +55,8 @@ ENGINE_CHECKLIST = [
     ("Love Compatibility", "enable_compatibility_engine", "Astromix-style compatibility flow"),
     ("Financial Advisory", "enable_financial_advisory_engine", "Goal-plan + risk-aware advisory"),
 ]
+SESSION_2FA_USER_ID = "operator_2fa_user_id"
+SESSION_2FA_BACKEND = "operator_2fa_backend"
 
 
 def _is_valid_upload_size(file_obj, max_mb: int) -> bool:
@@ -146,18 +160,28 @@ class OperatorLoginView(LoginView):
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
-        response = super().form_valid(form)
         raw_username = (self.request.POST.get("username") or "").strip()
         cache.delete(self._bucket_key(raw_username))
-        user = self.request.user
+        user = form.get_user()
         if not _has_operator_view_permission(user):
-            logout(self.request)
             messages.error(
                 self.request,
                 "គណនីនេះមិនទាន់មានសិទ្ធិប្រើផ្ទាំងប្រតិបត្តិការទេ។ សូមទាក់ទងអ្នកគ្រប់គ្រង។",
             )
             return redirect("chat:operator_login")
-        return response
+
+        if _require_operator_2fa(user):
+            profile = _get_or_create_operator_security_profile(user)
+            _stash_2fa_pending_session(self.request, user)
+            if not profile.otp_secret:
+                profile.otp_secret = generate_totp_secret()
+                profile.save(update_fields=["otp_secret", "updated_at"])
+            if profile.is_otp_enabled:
+                return redirect("chat:operator_2fa_verify")
+            return redirect("chat:operator_2fa_setup")
+
+        auth_login(self.request, user)
+        return redirect(self.get_success_url())
 
     def form_invalid(self, form):
         raw_username = (self.request.POST.get("username") or "").strip()
@@ -173,12 +197,100 @@ class OperatorLoginView(LoginView):
 
 @require_http_methods(["POST"])
 def operator_logout(request: HttpRequest) -> HttpResponse:
+    _clear_2fa_pending_session(request)
     logout(request)
     return redirect("chat:operator_login")
 
 
 def _operator_forbidden(request: HttpRequest) -> HttpResponse:
     return render(request, "chat/operator_forbidden.html", status=403)
+
+
+def _pending_2fa_user(request: HttpRequest):
+    user_id = request.session.get(SESSION_2FA_USER_ID)
+    if not user_id:
+        return None
+    from django.contrib.auth import get_user_model
+
+    user_model = get_user_model()
+    return user_model.objects.filter(pk=user_id).first()
+
+
+@require_http_methods(["GET", "POST"])
+def operator_2fa_setup(request: HttpRequest) -> HttpResponse:
+    user = _pending_2fa_user(request)
+    if not user:
+        return redirect("chat:operator_login")
+    if not _has_operator_view_permission(user):
+        _clear_2fa_pending_session(request)
+        return redirect("chat:operator_login")
+
+    profile = _get_or_create_operator_security_profile(user)
+    if not profile.otp_secret:
+        profile.otp_secret = generate_totp_secret()
+        profile.save(update_fields=["otp_secret", "updated_at"])
+
+    form = OperatorOTPForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        if verify_totp_code(profile.otp_secret, form.cleaned_data["otp_code"]):
+            profile.is_otp_enabled = True
+            profile.last_verified_at = timezone.now()
+            profile.save(update_fields=["is_otp_enabled", "last_verified_at", "updated_at"])
+            auth_login(request, user, backend=request.session.get(SESSION_2FA_BACKEND) or settings.AUTHENTICATION_BACKENDS[0])
+            _clear_2fa_pending_session(request)
+            messages.success(request, "បានបើកសុវត្ថិភាព 2FA រួចរាល់។")
+            return redirect("chat:operator_dashboard")
+        messages.error(request, "កូដមិនត្រឹមត្រូវ។ សូមពិនិត្យម្តងទៀត។")
+
+    otp_uri = (
+        "otpauth://totp/"
+        f"{quote(settings.OPERATOR_2FA_ISSUER)}:{quote(user.get_username())}"
+        f"?secret={profile.otp_secret}&issuer={quote(settings.OPERATOR_2FA_ISSUER)}"
+    )
+    return render(
+        request,
+        "chat/operator_2fa_setup.html",
+        {
+            "form": form,
+            "otp_secret": profile.otp_secret,
+            "otp_uri": otp_uri,
+            "username": user.get_username(),
+        },
+    )
+
+
+@require_http_methods(["GET", "POST"])
+def operator_2fa_verify(request: HttpRequest) -> HttpResponse:
+    user = _pending_2fa_user(request)
+    if not user:
+        return redirect("chat:operator_login")
+    if not _has_operator_view_permission(user):
+        _clear_2fa_pending_session(request)
+        return redirect("chat:operator_login")
+
+    profile = _get_or_create_operator_security_profile(user)
+    if not profile.is_otp_enabled:
+        return redirect("chat:operator_2fa_setup")
+
+    form = OperatorOTPForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        if verify_totp_code(profile.otp_secret, form.cleaned_data["otp_code"]):
+            profile.last_verified_at = timezone.now()
+            profile.save(update_fields=["last_verified_at", "updated_at"])
+            auth_login(request, user, backend=request.session.get(SESSION_2FA_BACKEND) or settings.AUTHENTICATION_BACKENDS[0])
+            _clear_2fa_pending_session(request)
+            messages.success(request, "បញ្ជាក់ 2FA ជោគជ័យ។")
+            return redirect("chat:operator_dashboard")
+        messages.error(request, "កូដមិនត្រឹមត្រូវ។ សូមពិនិត្យម្តងទៀត។")
+
+    return render(
+        request,
+        "chat/operator_2fa_verify.html",
+        {
+            "form": form,
+            "username": user.get_username(),
+        },
+    )
 
 
 def _get_or_create_conversation(request: HttpRequest) -> Conversation:
@@ -222,6 +334,64 @@ def _can_rollback(user) -> bool:
     return bool(user and user.is_authenticated and user.has_perm("chat.rollback_assistantconfig"))
 
 
+def _get_or_create_operator_security_profile(user) -> OperatorSecurityProfile:
+    profile, _created = OperatorSecurityProfile.objects.get_or_create(user=user)
+    return profile
+
+
+def _require_operator_2fa(user) -> bool:
+    return bool(settings.OPERATOR_REQUIRE_2FA and _has_operator_view_permission(user))
+
+
+def _operator_needs_2fa_setup(user) -> bool:
+    if not _require_operator_2fa(user):
+        return False
+    profile = _get_or_create_operator_security_profile(user)
+    return not profile.is_otp_enabled
+
+
+def _stash_2fa_pending_session(request: HttpRequest, user) -> None:
+    backend = getattr(user, "backend", None) or settings.AUTHENTICATION_BACKENDS[0]
+    request.session[SESSION_2FA_USER_ID] = user.pk
+    request.session[SESSION_2FA_BACKEND] = backend
+    request.session.modified = True
+
+
+def _clear_2fa_pending_session(request: HttpRequest) -> None:
+    request.session.pop(SESSION_2FA_USER_ID, None)
+    request.session.pop(SESSION_2FA_BACKEND, None)
+    request.session.modified = True
+
+
+def _extract_tg_chat_id(session_key: str) -> int | None:
+    if not session_key.startswith("tg_"):
+        return None
+    raw = session_key[3:]
+    return int(raw) if raw.isdigit() else None
+
+
+def _send_broadcast_campaign(*, campaign: BroadcastCampaign) -> tuple[int, int, int]:
+    recipients_qs = Conversation.objects.filter(marketing_opt_in=True).only("session_key")
+    sent = 0
+    failed = 0
+    total = 0
+    max_batch = max(1, int(settings.BROADCAST_MAX_BATCH))
+
+    for convo in recipients_qs.iterator():
+        chat_id = _extract_tg_chat_id(convo.session_key)
+        if not chat_id:
+            continue
+        total += 1
+        if total > max_batch:
+            break
+        try:
+            send_telegram_message(chat_id, campaign.message)
+            sent += 1
+        except Exception:
+            failed += 1
+    return total, sent, failed
+
+
 def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -> dict:
     history_qs = config.history.all()
     history_entries = Paginator(history_qs, 10).get_page(request.GET.get("history_page"))
@@ -259,6 +429,11 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         telegram_username="",
     )
     recent_contacts = contacts_qs.order_by("-updated_at")[:30]
+    telegram_opt_in_count = Conversation.objects.filter(
+        marketing_opt_in=True,
+        session_key__startswith="tg_",
+    ).count()
+    recent_campaigns = BroadcastCampaign.objects.all()[:20]
     engine_checklist = [
         {
             "name": name,
@@ -282,6 +457,8 @@ def _build_dashboard_context(request: HttpRequest, *, config: AssistantConfig) -
         "telegram_webhook_path": settings.TELEGRAM_WEBHOOK_PATH,
         "opted_in_contacts": contacts_qs.count(),
         "recent_contacts": recent_contacts,
+        "telegram_opt_in_count": telegram_opt_in_count,
+        "recent_campaigns": recent_campaigns,
         "engine_checklist": engine_checklist,
     }
 
@@ -410,6 +587,10 @@ def chat_home(request: HttpRequest) -> HttpResponse:
 def operator_dashboard(request: HttpRequest) -> HttpResponse:
     if not _has_operator_view_permission(request.user):
         return _operator_forbidden(request)
+    if _operator_needs_2fa_setup(request.user):
+        logout(request)
+        messages.error(request, "សុវត្ថិភាព 2FA ត្រូវបានទាមទារ។ សូមចូលម្តងទៀតដើម្បីកំណត់ 2FA។")
+        return redirect("chat:operator_login")
 
     config = AssistantConfig.get_solo()
     can_edit_prompt = _can_edit_prompt(request.user)
@@ -436,6 +617,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 updated_config.save()
                 messages.success(request, "បានរក្សាទុកសារណែនាំរួចរាល់។")
                 return redirect("chat:operator_dashboard")
+            campaign_form = BroadcastCampaignForm()
         elif action == "save_advanced":
             if not can_manage_advanced:
                 return _operator_forbidden(request)
@@ -453,6 +635,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 updated_config.save()
                 messages.success(request, "បានរក្សាទុកការកំណត់ម៉ូឌែលរួចរាល់។")
                 return redirect("chat:operator_dashboard")
+            campaign_form = BroadcastCampaignForm()
         elif action == "save_engines":
             if not can_manage_advanced:
                 return _operator_forbidden(request)
@@ -469,6 +652,42 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
                 updated_config.updated_by = request.user.get_username()
                 updated_config.save()
                 messages.success(request, "បានរក្សាទុកការកំណត់ម៉ាស៊ីនទាយរួចរាល់។")
+                return redirect("chat:operator_dashboard")
+            campaign_form = BroadcastCampaignForm()
+        elif action == "send_broadcast":
+            form = AssistantPromptForm(instance=config)
+            advanced_form = AssistantAdvancedSettingsForm(instance=config)
+            engine_form = AssistantEngineSettingsForm(instance=config)
+            if not can_manage_advanced:
+                return _operator_forbidden(request)
+            campaign_form = BroadcastCampaignForm(request.POST)
+            if campaign_form.is_valid():
+                campaign = campaign_form.save(commit=False)
+                campaign.created_by = request.user.get_username()
+                campaign.status = BroadcastCampaign.Status.DRAFT
+                campaign.save()
+                total, sent, failed = _send_broadcast_campaign(campaign=campaign)
+                campaign.recipient_count = total
+                campaign.success_count = sent
+                campaign.failure_count = failed
+                campaign.sent_at = timezone.now()
+                if failed:
+                    campaign.status = BroadcastCampaign.Status.FAILED
+                    campaign.error_log = "មានសារខ្លះផ្ញើមិនបាន។ សូមពិនិត្យ Telegram token និងគណនីអ្នកទទួល។"
+                    messages.warning(request, "Broadcast ផ្ញើបានមួយផ្នែក។")
+                else:
+                    campaign.status = BroadcastCampaign.Status.SENT
+                    messages.success(request, "Broadcast ត្រូវបានផ្ញើរួចរាល់។")
+                campaign.save(
+                    update_fields=[
+                        "recipient_count",
+                        "success_count",
+                        "failure_count",
+                        "status",
+                        "error_log",
+                        "sent_at",
+                    ]
+                )
                 return redirect("chat:operator_dashboard")
         elif action == "rollback":
             if not can_rollback:
@@ -503,10 +722,12 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
             form = AssistantPromptForm(instance=config)
             advanced_form = AssistantAdvancedSettingsForm(instance=config)
             engine_form = AssistantEngineSettingsForm(instance=config)
+            campaign_form = BroadcastCampaignForm()
     else:
         form = AssistantPromptForm(instance=config)
         advanced_form = AssistantAdvancedSettingsForm(instance=config)
         engine_form = AssistantEngineSettingsForm(instance=config)
+        campaign_form = BroadcastCampaignForm()
 
     context = _build_dashboard_context(request, config=config)
     context.update(
@@ -517,6 +738,7 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
             "can_edit_prompt": can_edit_prompt,
             "can_manage_advanced": can_manage_advanced,
             "can_rollback": can_rollback,
+            "campaign_form": campaign_form,
         }
     )
     return render(request, "chat/operator_dashboard.html", context)
@@ -527,6 +749,10 @@ def operator_dashboard(request: HttpRequest) -> HttpResponse:
 def operator_conversation_detail(request: HttpRequest, conversation_id) -> HttpResponse:
     if not _has_operator_view_permission(request.user):
         return _operator_forbidden(request)
+    if _operator_needs_2fa_setup(request.user):
+        logout(request)
+        messages.error(request, "សុវត្ថិភាព 2FA ត្រូវបានទាមទារ។ សូមចូលម្តងទៀត។")
+        return redirect("chat:operator_login")
     conversation = get_object_or_404(Conversation, pk=conversation_id)
     messages_page = Paginator(
         conversation.messages.all(),
@@ -709,6 +935,10 @@ def telegram_webhook(request: HttpRequest) -> JsonResponse | HttpResponseForbidd
 def operator_export_contacts_csv(request: HttpRequest) -> HttpResponse:
     if not _can_manage_advanced_settings(request.user):
         return _operator_forbidden(request)
+    if _operator_needs_2fa_setup(request.user):
+        logout(request)
+        messages.error(request, "សុវត្ថិភាព 2FA ត្រូវបានទាមទារ។ សូមចូលម្តងទៀត។")
+        return redirect("chat:operator_login")
 
     rows = (
         Conversation.objects.filter(marketing_opt_in=True)
@@ -756,6 +986,10 @@ def operator_export_contacts_csv(request: HttpRequest) -> HttpResponse:
 def operator_export_users_csv(request: HttpRequest) -> HttpResponse:
     if not _can_manage_advanced_settings(request.user):
         return _operator_forbidden(request)
+    if _operator_needs_2fa_setup(request.user):
+        logout(request)
+        messages.error(request, "សុវត្ថិភាព 2FA ត្រូវបានទាមទារ។ សូមចូលម្តងទៀត។")
+        return redirect("chat:operator_login")
 
     query = (request.GET.get("q") or "").strip()
     users_qs = Conversation.objects.all()

@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
+from .models import (
+    AssistantConfig,
+    AssistantConfigHistory,
+    BroadcastCampaign,
+    Conversation,
+    Message,
+    OperatorSecurityProfile,
+)
 
 admin.site.site_header = "Fortune Telling Administration"
 admin.site.site_title = "Fortune Telling Administration"
@@ -95,3 +102,18 @@ class AssistantConfigHistoryAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(BroadcastCampaign)
+class BroadcastCampaignAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "channel", "status", "recipient_count", "success_count", "failure_count", "sent_at", "created_by")
+    list_filter = ("channel", "status", "created_at")
+    search_fields = ("title", "message", "created_by")
+    readonly_fields = ("created_at", "sent_at", "recipient_count", "success_count", "failure_count")
+
+
+@admin.register(OperatorSecurityProfile)
+class OperatorSecurityProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "is_otp_enabled", "last_verified_at", "updated_at")
+    list_filter = ("is_otp_enabled",)
+    search_fields = ("user__username", "user__email")

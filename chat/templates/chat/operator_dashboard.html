@@ -4,39 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ផ្ទាំងអ្នកគ្រប់គ្រង | យាយមុន្នី</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      body { font-family: "Noto Sans Khmer", sans-serif; margin: 0; background: #f5f7fb; color: #1d2633; }
       .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
-      .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+      .card { background: var(--op-surface); color: var(--op-text); }
       h1 { margin: 0 0 8px; }
       .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-      a.btn, button.btn { text-decoration: none; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; background: #fff; cursor: pointer; }
+      a.btn, button.btn { text-decoration: none; color: var(--op-text); border: 1px solid var(--op-border); border-radius: 8px; padding: 8px 12px; background: var(--op-surface); cursor: pointer; }
       .nav { display: flex; gap: 10px; align-items: center; }
       .nav form { margin: 0; }
       label { display: block; margin-top: 14px; font-weight: 600; }
-      textarea, input { width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid #d0d7de; font: inherit; }
+      textarea, input, select { width: 100%; margin-top: 6px; padding: 10px; border-radius: 8px; border: 1px solid var(--op-border); font: inherit; background: var(--op-surface); color: var(--op-text); }
       input[type="checkbox"] { width: auto; margin-right: 8px; }
-      button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 8px; background: #2f7d32; color: #fff; }
-      .msg { background: #ebf9ef; border: 1px solid #99d8a8; color: #17602d; padding: 10px; border-radius: 8px; margin-bottom: 12px; }
-      .help { color: #555; font-size: 0.95rem; }
-      .section { border-top: 1px solid #e9edf3; margin-top: 20px; padding-top: 20px; }
-      .muted { color: #5c6978; font-size: 0.9rem; }
-      .warn { color: #9f7c00; background: #fff8dd; border: 1px solid #f0dc8f; border-radius: 8px; padding: 10px; }
+      button { margin-top: 16px; padding: 10px 14px; border-radius: 8px; }
+      button[type="submit"] { background: var(--op-brand); border: 1px solid var(--op-brand); color: #fff; }
+      button[type="submit"]:hover { background: var(--op-brand-strong); border-color: var(--op-brand-strong); }
+      .help { color: var(--op-muted); font-size: 0.95rem; }
+      .section { border-top: 1px solid var(--op-border); margin-top: 20px; padding-top: 20px; }
+      .muted { color: var(--op-muted); font-size: 0.9rem; }
       .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-      .stat { background: #f7f9fc; border: 1px solid #dde6f0; border-radius: 10px; padding: 12px; }
+      .stat { background: var(--op-surface); border: 1px solid var(--op-border); border-radius: 10px; padding: 12px; }
       .stat b { display: block; font-size: 1.2rem; margin-bottom: 3px; }
       .ok { color: #17602d; font-weight: 600; }
       .bad { color: #8f2d2d; font-weight: 600; }
       table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
-      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eef2f6; vertical-align: top; }
+      th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--op-border); vertical-align: top; }
       .btn-danger { background: #8f2d2d; }
       .btn-small { margin: 0; padding: 7px 10px; font-size: 0.85rem; }
-      .empty { background: #f7f9fc; border: 1px dashed #d8e0ea; border-radius: 8px; padding: 12px; color: #5c6978; }
+      .empty { background: var(--op-surface); border: 1px dashed var(--op-border); border-radius: 8px; padding: 12px; color: var(--op-muted); }
       .search { display: flex; gap: 8px; margin-top: 10px; }
       .search button { margin-top: 0; }
       .pager { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-      .pager a { text-decoration: none; color: #1f6feb; }
-      .link { color: #1f6feb; text-decoration: none; }
+      .pager a { text-decoration: none; color: var(--op-brand); }
+      .link { color: var(--op-brand); text-decoration: none; }
       .link:hover { text-decoration: underline; }
       .check-item { display: block; margin-top: 10px; }
       @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
@@ -52,7 +53,7 @@
           </div>
           <div class="nav">
             <a class="btn" href="{% url 'chat:home' %}">មើលទំព័រអតិថិជន</a>
-            <a class="btn" href="/admin/">Django Admin</a>
+            <a class="btn" href="/admin/">Fortune Telling Admin</a>
             <form method="post" action="{% url 'chat:operator_logout' %}">
               {% csrf_token %}
               <button class="btn" type="submit">ចាកចេញ</button>
@@ -122,7 +123,47 @@
         <div class="section">
           <h2>ទិន្នន័យផ្សព្វផ្សាយ (Broadcast)</h2>
           {% if can_manage_advanced %}
-            <a class="btn" href="{% url 'chat:operator_export_contacts_csv' %}">ទាញយក CSV អ្នកប្រើ</a>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="send_broadcast" />
+              <label for="id_title">{{ campaign_form.title.label }}</label>
+              {{ campaign_form.title }}
+              <label for="id_channel">{{ campaign_form.channel.label }}</label>
+              {{ campaign_form.channel }}
+              <label for="id_message">{{ campaign_form.message.label }}</label>
+              {{ campaign_form.message }}
+              <p class="muted">Telegram អ្នកយល់ព្រមទទួលព័ត៌មាន: {{ telegram_opt_in_count }} នាក់</p>
+              <button type="submit">ផ្ញើ Broadcast</button>
+              <a class="btn" href="{% url 'chat:operator_export_contacts_csv' %}">ទាញយក CSV អ្នកប្រើ</a>
+            </form>
+          {% endif %}
+          {% if recent_campaigns %}
+            <table>
+              <thead>
+                <tr>
+                  <th>ចំណងជើង</th>
+                  <th>ផ្លូវ</th>
+                  <th>ស្ថានភាព</th>
+                  <th>អ្នកទទួល</th>
+                  <th>ជោគជ័យ</th>
+                  <th>បរាជ័យ</th>
+                  <th>ពេលផ្ញើ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in recent_campaigns %}
+                  <tr>
+                    <td>{{ c.title }}</td>
+                    <td>{{ c.get_channel_display }}</td>
+                    <td>{{ c.get_status_display }}</td>
+                    <td>{{ c.recipient_count }}</td>
+                    <td>{{ c.success_count }}</td>
+                    <td>{{ c.failure_count }}</td>
+                    <td>{% if c.sent_at %}{{ c.sent_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           {% endif %}
           {% if recent_contacts %}
             <table>

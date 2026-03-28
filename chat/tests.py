@@ -14,7 +14,15 @@ from openai import OpenAIError
 from .face_reading import build_face_reading_engine_notes
 from .fengshui import build_fengshui_snapshot
 from .house_numerology import build_house_numerology_snapshot
-from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
+from .models import (
+    AssistantConfig,
+    AssistantConfigHistory,
+    BroadcastCampaign,
+    Conversation,
+    Message,
+    OperatorSecurityProfile,
+)
+from .security import current_totp_code
 from .palm_reading import build_palm_reading_engine_notes
 from .services import BIRTH_WEIGHT_SAFETY_PROMPT, KHMER_ONLY_FALLBACK, SHORT_RELEVANT_GUARD_PROMPT, get_yeay_monny_reply
 from .vehicle_numerology import build_vehicle_numerology_snapshot
@@ -346,6 +354,59 @@ class OperatorPortalTests(TestCase):
                 change_reason=AssistantConfigHistory.ChangeReason.ROLLBACK
             ).exists()
         )
+
+    @override_settings(OPERATOR_REQUIRE_2FA=True)
+    def test_operator_login_requires_2fa_setup_then_verify(self) -> None:
+        response = self.client.post(
+            reverse("chat:operator_login"),
+            {"username": "admin", "password": "testpass123"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("chat:operator_2fa_setup"), response.url)
+
+        profile = OperatorSecurityProfile.objects.get(user=self.admin_user)
+        otp = current_totp_code(profile.otp_secret)
+
+        setup_response = self.client.post(
+            reverse("chat:operator_2fa_setup"),
+            {"otp_code": otp},
+            follow=True,
+        )
+        self.assertEqual(setup_response.status_code, 200)
+        self.assertContains(setup_response, "ផ្ទាំងអ្នកគ្រប់គ្រង")
+
+        self.client.post(reverse("chat:operator_logout"))
+
+        response2 = self.client.post(
+            reverse("chat:operator_login"),
+            {"username": "admin", "password": "testpass123"},
+        )
+        self.assertEqual(response2.status_code, 302)
+        self.assertIn(reverse("chat:operator_2fa_verify"), response2.url)
+
+    @patch("chat.views.send_telegram_message")
+    def test_admin_can_send_broadcast_campaign(self, mock_send) -> None:
+        Conversation.objects.create(session_key="tg_123456", marketing_opt_in=True)
+        Conversation.objects.create(session_key="tg_999888", marketing_opt_in=True)
+        self.client.login(username="admin", password="testpass123")
+        response = self.client.post(
+            reverse("chat:operator_dashboard"),
+            {
+                "action": "send_broadcast",
+                "title": "New Offer",
+                "channel": "telegram",
+                "message": "សួស្តីចៅៗ មានព័ត៌មានថ្មី",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BroadcastCampaign.objects.count(), 1)
+        campaign = BroadcastCampaign.objects.first()
+        assert campaign is not None
+        self.assertEqual(campaign.status, BroadcastCampaign.Status.SENT)
+        self.assertEqual(campaign.recipient_count, 2)
+        self.assertEqual(campaign.success_count, 2)
+        self.assertEqual(mock_send.call_count, 2)
 
     @override_settings(OPERATOR_LOGIN_MAX_ATTEMPTS=2, OPERATOR_LOGIN_WINDOW_SECONDS=600)
     def test_operator_login_rate_limit_blocks_repeated_failures(self) -> None:

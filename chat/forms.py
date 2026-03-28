@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm
 
-from .models import AssistantConfig
+from .models import AssistantConfig, BroadcastCampaign
 
 
 class OperatorAuthenticationForm(AuthenticationForm):
@@ -84,3 +84,30 @@ class AssistantEngineSettingsForm(forms.ModelForm):
             "compatibility_score_threshold": "ពិន្ទុយោងសម្រាប់បកស្រាយថា ត្រូវគ្នាខ្លាំង ឬមធ្យម។",
             "engine_operator_note": "សរសេរខ្លីៗជាភាសាខ្មែរ ដើម្បីណែនាំម៉ាស៊ីន (មិនបាច់ដាក់អត្ថបទវែងពេក)។",
         }
+
+
+class BroadcastCampaignForm(forms.ModelForm):
+    class Meta:
+        model = BroadcastCampaign
+        fields = ["title", "channel", "message"]
+        widgets = {
+            "title": forms.TextInput(attrs={"maxlength": 200}),
+            "message": forms.Textarea(attrs={"rows": 4, "maxlength": 3000}),
+        }
+        labels = {
+            "title": "ចំណងជើង Campaign",
+            "channel": "ផ្លូវផ្ញើ",
+            "message": "សារផ្សព្វផ្សាយ",
+        }
+        help_texts = {
+            "message": "សារខ្លីៗ ច្បាស់ ហើយគួរបញ្ចូលជំហានបន្តសម្រាប់អ្នកប្រើ។",
+        }
+
+
+class OperatorOTPForm(forms.Form):
+    otp_code = forms.CharField(
+        label="កូដ 6 ខ្ទង់",
+        max_length=6,
+        min_length=6,
+        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "one-time-code"}),
+    )

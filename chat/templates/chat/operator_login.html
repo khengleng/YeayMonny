@@ -4,13 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ចូលប្រើផ្ទាំងគ្រប់គ្រង | យាយមុន្នី</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'chat/operator.css' %}" />
     <style>
-      body { font-family: "Noto Sans Khmer", sans-serif; margin: 0; background: #f8f8f8; }
       .wrap { max-width: 480px; margin: 48px auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
       h1 { margin-top: 0; }
       label { display: block; margin-top: 12px; font-weight: 600; }
-      input { width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #ddd; border-radius: 8px; }
-      button { margin-top: 16px; width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #1f6feb; color: #fff; }
+      .wrap { background: var(--op-surface); border: 1px solid var(--op-border); color: var(--op-text); }
+      button { margin-top: 16px; width: 100%; }
       .err { color: #b42318; margin-top: 8px; }
     </style>
   </head>
@@ -30,7 +31,7 @@
         {{ form.username }}
         <label for="id_password">ពាក្យសម្ងាត់</label>
         {{ form.password }}
-        <button type="submit">ចូលប្រើ</button>
+        <button class="primary" type="submit">ចូលប្រើ</button>
       </form>
     </div>
   </body>

@@ -8,6 +8,18 @@
   --admin-brand-dark: #1a57c7;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --admin-bg: #0f1218;
+    --admin-surface: #161b24;
+    --admin-text: #e6ebf3;
+    --admin-muted: #a9b3c4;
+    --admin-border: #2d3644;
+    --admin-brand: #6ea7ff;
+    --admin-brand-dark: #96bcff;
+  }
+}
+
 body {
   background: var(--admin-bg);
   color: var(--admin-text);

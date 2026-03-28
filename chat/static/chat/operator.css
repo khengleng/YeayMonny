@@ -1,0 +1,134 @@
+:root {
+  color-scheme: light dark;
+  --op-bg: #f4f6fb;
+  --op-surface: #ffffff;
+  --op-text: #1f2937;
+  --op-muted: #5b6474;
+  --op-border: #d8dfeb;
+  --op-brand: #0f5bd8;
+  --op-brand-strong: #0c47a6;
+  --op-success-bg: #e9f8ef;
+  --op-success-border: #97d4ac;
+  --op-success-text: #166534;
+  --op-warn-bg: #fff8dd;
+  --op-warn-border: #f0dc8f;
+  --op-warn-text: #7a5a00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --op-bg: #0f1218;
+    --op-surface: #161b24;
+    --op-text: #e6ebf3;
+    --op-muted: #a9b3c4;
+    --op-border: #2d3644;
+    --op-brand: #6ea7ff;
+    --op-brand-strong: #96bcff;
+    --op-success-bg: #13271b;
+    --op-success-border: #2f6240;
+    --op-success-text: #92e4af;
+    --op-warn-bg: #2a2311;
+    --op-warn-border: #69561f;
+    --op-warn-text: #f2d37a;
+  }
+}
+
+body {
+  font-family: "Noto Sans Khmer", sans-serif;
+  margin: 0;
+  background: var(--op-bg);
+  color: var(--op-text);
+}
+
+.wrap {
+  max-width: 980px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: var(--op-surface);
+  border: 1px solid var(--op-border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+a,
+.link {
+  color: var(--op-brand);
+}
+
+a:hover,
+.link:hover {
+  color: var(--op-brand-strong);
+}
+
+.btn,
+button,
+input[type="submit"] {
+  border: 1px solid var(--op-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--op-surface);
+  color: var(--op-text);
+}
+
+button.primary,
+.btn-primary {
+  background: var(--op-brand);
+  border-color: var(--op-brand);
+  color: #fff;
+}
+
+button.primary:hover,
+.btn-primary:hover {
+  background: var(--op-brand-strong);
+  border-color: var(--op-brand-strong);
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--op-border);
+  background: var(--op-surface);
+  color: var(--op-text);
+  font: inherit;
+}
+
+.msg {
+  background: var(--op-success-bg);
+  border: 1px solid var(--op-success-border);
+  color: var(--op-success-text);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.warn {
+  color: var(--op-warn-text);
+  background: var(--op-warn-bg);
+  border: 1px solid var(--op-warn-border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.muted { color: var(--op-muted); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 9px;
+  border-bottom: 1px solid var(--op-border);
+  vertical-align: top;
+}

@@ -208,6 +208,12 @@ CHAT_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("CHAT_RATE_LIMIT_WINDOW_SECONDS",
 TELEGRAM_RATE_LIMIT_MAX_REQUESTS = int(os.getenv("TELEGRAM_RATE_LIMIT_MAX_REQUESTS", "30"))
 TELEGRAM_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("TELEGRAM_RATE_LIMIT_WINDOW_SECONDS", "60"))
 MAX_USER_MESSAGE_CHARS = int(os.getenv("MAX_USER_MESSAGE_CHARS", "4000"))
+OPERATOR_REQUIRE_2FA = os.getenv(
+    "OPERATOR_REQUIRE_2FA",
+    "False" if DEBUG or RUNNING_TESTS else "True",
+).lower() in {"1", "true", "yes", "on"}
+OPERATOR_2FA_ISSUER = os.getenv("OPERATOR_2FA_ISSUER", "YeayMonny Operator")
+BROADCAST_MAX_BATCH = int(os.getenv("BROADCAST_MAX_BATCH", "500"))
 
 telegram_webhook_path = os.getenv("TELEGRAM_WEBHOOK_PATH", "/webhooks/telegram/").strip()
 if not telegram_webhook_path.startswith("/"):
