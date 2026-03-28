@@ -148,6 +148,7 @@ SECURE_SSL_REDIRECT = os.getenv(
     "yes",
     "on",
 }
+SECURE_REDIRECT_EXEMPT = [r"^healthz$"]
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "86400" if not DEBUG else "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv(
     "SECURE_HSTS_INCLUDE_SUBDOMAINS",
