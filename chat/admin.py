@@ -2,6 +2,10 @@ from django.contrib import admin
 
 from .models import AssistantConfig, AssistantConfigHistory, Conversation, Message
 
+admin.site.site_header = "Fortune Telling Administration"
+admin.site.site_title = "Fortune Telling Administration"
+admin.site.index_title = "Fortune Telling Administration"
+
 
 class MessageInline(admin.TabularInline):
     model = Message
