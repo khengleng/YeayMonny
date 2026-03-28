@@ -126,6 +126,7 @@ python manage.py runserver
 - `TELEGRAM_RATE_LIMIT_MAX_REQUESTS`
 - `TELEGRAM_RATE_LIMIT_WINDOW_SECONDS`
 - `MAX_USER_MESSAGE_CHARS`
+- `RUN_MIGRATIONS` (`1` to run migrate at container start, default `0`)
 
 ## Railway deployment
 
