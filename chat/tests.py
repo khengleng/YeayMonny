@@ -681,8 +681,24 @@ class BirthWeightEngineTests(TestCase):
         self.assertEqual(snap.month, 5)
         self.assertEqual(snap.day, 12)
         self.assertEqual(snap.hour, 14)
+        self.assertEqual(snap.lunar_year, 1998)
+        self.assertEqual(snap.lunar_month, 4)
+        self.assertEqual(snap.lunar_day, 17)
+        self.assertEqual(snap.year_weight_qian, 8)
+        self.assertEqual(snap.month_weight_qian, 9)
+        self.assertEqual(snap.day_weight_qian, 9)
+        self.assertEqual(snap.hour_weight_qian, 8)
+        self.assertEqual(snap.total_weight, 3.4)
         self.assertTrue(snap.total_weight is not None)
         self.assertTrue(snap.result_label)
+
+    def test_birth_weight_matches_published_reference_example(self) -> None:
+        # Reference: 14-Feb-1974, 23:00-00:59 => 4 liang 2 qian.
+        snap = build_birth_weight_snapshot("14-02-1974 23:30")
+        self.assertEqual(snap.lunar_year, 1974)
+        self.assertEqual(snap.lunar_month, 1)
+        self.assertEqual(snap.lunar_day, 23)
+        self.assertEqual(snap.total_weight, 4.2)
 
     def test_service_profile_includes_birth_weight_line(self) -> None:
         mock_client = MagicMock()
@@ -692,7 +708,7 @@ class BirthWeightEngineTests(TestCase):
         with override_settings(OPENAI_API_KEY="fake-key"), patch("chat.services.OpenAI", return_value=mock_client):
             get_yeay_monny_reply(history, user_profile=profile)
         profile_block = mock_client.responses.create.call_args.kwargs["input"][1]["content"]
-        self.assertIn("Birth Weight (approx)", profile_block)
+        self.assertIn("Birth Weight (liang/qian)", profile_block)
 
 
 class AstrologyEngineTests(TestCase):

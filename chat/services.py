@@ -145,7 +145,7 @@ def _build_profile_context(user_profile: dict[str, str] | None, config: Assistan
     if snapshot.life_path_number:
         astrology_lines.append(f"- លេខផ្លូវជីវិត៖ {snapshot.life_path_number}")
     if birth_weight.total_weight is not None:
-        astrology_lines.append(f"- Birth Weight (approx)៖ {birth_weight.total_weight}")
+        astrology_lines.append(f"- Birth Weight (liang/qian)៖ {birth_weight.total_weight}")
     if birth_weight.result_label:
         astrology_lines.append(f"- លទ្ធផលទម្ងន់កំណើត៖ {birth_weight.result_label}")
     if birth_weight.note:
