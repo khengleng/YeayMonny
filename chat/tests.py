@@ -381,11 +381,11 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("Dynamic Lucky Signs", profile_block)
         self.assertIn("ឆ្នាំបច្ចុប្បន្នសម្រាប់គណនា", profile_block)
 
-    def test_reply_always_contains_calculation_basis_with_full_dob(self) -> None:
+    def test_reply_includes_calculation_basis_for_age_question_with_full_dob(self) -> None:
         mock_client = MagicMock()
         mock_client.responses.create.return_value = SimpleNamespace(output_text="នេះជាចម្លើយសាកល្បង")
-        history = [Message(role=Message.Role.USER, content="សួស្តី")]
-        profile = {"birth_info": "22-03-1980"}
+        history = [Message(role=Message.Role.USER, content="សួរស្តី អាយុខ្ញុំប៉ុន្មាន")]
+        profile = {"birth_info": "22-03-1980", "question_focus": "សូមគណនាអាយុ"}
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history, user_profile=profile)
 
@@ -393,16 +393,25 @@ class AssistantConfigServiceTests(TestCase):
         self.assertIn("ថ្ងៃកំណើត", reply)
         self.assertIn("អាយុគណនា", reply)
 
-    def test_reply_always_contains_calculation_basis_without_full_dob(self) -> None:
+    def test_reply_includes_calculation_basis_without_full_dob_for_age_question(self) -> None:
         mock_client = MagicMock()
         mock_client.responses.create.return_value = SimpleNamespace(output_text="នេះជាចម្លើយសាកល្បង")
-        history = [Message(role=Message.Role.USER, content="សួស្តី")]
-        profile = {"birth_info": "1980"}
+        history = [Message(role=Message.Role.USER, content="សូមគណនាអាយុ")]
+        profile = {"birth_info": "1980", "question_focus": "អាយុ"}
         with patch("chat.services.OpenAI", return_value=mock_client):
             reply = get_yeay_monny_reply(history, user_profile=profile)
 
         self.assertIn("មូលដ្ឋានគណនា", reply)
         self.assertIn("មានតែឆ្នាំកំណើត", reply)
+
+    def test_reply_omits_calculation_basis_for_non_age_question(self) -> None:
+        mock_client = MagicMock()
+        mock_client.responses.create.return_value = SimpleNamespace(output_text="នេះជាចម្លើយសាកល្បង")
+        history = [Message(role=Message.Role.USER, content="សួរពីការងារ")]
+        profile = {"birth_info": "22-03-1980", "question_focus": "ការងារ"}
+        with patch("chat.services.OpenAI", return_value=mock_client):
+            reply = get_yeay_monny_reply(history, user_profile=profile)
+        self.assertNotIn("មូលដ្ឋានគណនា", reply)
 
     def test_service_profile_context_respects_engine_toggles(self) -> None:
         config = AssistantConfig.get_solo()

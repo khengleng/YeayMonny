@@ -383,6 +383,18 @@ def _attach_calculation_basis(text: str, user_profile: dict[str, str] | None) ->
     content = (text or "").strip()
     if not content:
         return content
+    profile = user_profile or {}
+    question_focus = (profile.get("question_focus") or "").strip()
+    latest_user_text = (profile.get("latest_user_text") or "").strip()
+    wants_basis = bool(
+        re.search(
+            r"(អាយុ|គណនា|ថ្ងៃកំណើត|dob|birth|age)",
+            f"{question_focus}\n{latest_user_text}",
+            flags=re.IGNORECASE,
+        )
+    )
+    if not wants_basis:
+        return content
     basis = _build_calculation_basis_line(user_profile)
     if "មូលដ្ឋានគណនា" in content:
         return content
