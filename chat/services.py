@@ -57,6 +57,13 @@ HIGH_EQ_GUARD_PROMPT = """
 - កុំឆ្លើយបែបម៉ាស៊ីន ឬជាបញ្ជីដដែលៗ
 - បើអ្នកប្រើបារម្ភ ឬតានតឹង ត្រូវដាក់ពាក្យបន្ថយសម្ពាធជាមុន
 """
+SHORT_RELEVANT_GUARD_PROMPT = """
+ច្បាប់ចម្លើយខ្លី និងចំប្រធានបទ
+- ឆ្លើយខ្លី សាមញ្ញ ងាយយល់
+- ឆ្លើយតែអ្វីដែលទាក់ទងសំណួរអ្នកប្រើ
+- កុំបន្ថែមព័ត៌មានមិនចាំបាច់
+- បើមិនមានទិន្នន័យគ្រប់គ្រាន់ សួរតែ១សំណួរខ្លីដើម្បីបញ្ជាក់
+"""
 KHMER_ONLY_FALLBACK = "ចៅអើយ សូមទោស។ យាយនឹងឆ្លើយជាភាសាខ្មែរប៉ុណ្ណោះ។ សូមសួរម្តងទៀត។"
 LUCKY_SIGNS_ON_DEMAND_PROMPT = """
 ច្បាប់សញ្ញាសំណាង
@@ -339,6 +346,7 @@ def _build_messages(
         {"role": "system", "content": LUCKY_SIGNS_ON_DEMAND_PROMPT.strip()},
         {"role": "system", "content": IDENTITY_CONTEXT_GUARD_PROMPT.strip()},
         {"role": "system", "content": HIGH_EQ_GUARD_PROMPT.strip()},
+        {"role": "system", "content": SHORT_RELEVANT_GUARD_PROMPT.strip()},
     ]
     for item in history_list:
         messages.append({"role": item.role, "content": item.content})
