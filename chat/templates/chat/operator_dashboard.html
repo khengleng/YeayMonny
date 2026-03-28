@@ -94,6 +94,32 @@
         </div>
 
         <div class="section">
+          <h2>Fortune Telling Engine Configuration</h2>
+          <p class="muted">បញ្ជីម៉ាស៊ីនទាយ និងស្ថានភាពបើក/បិទ</p>
+          <table>
+            <thead>
+              <tr>
+                <th>ម៉ាស៊ីន</th>
+                <th>ស្ថានភាព</th>
+                <th>យោងតក្កវិជ្ជា</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for engine in engine_checklist %}
+                <tr>
+                  <td>{{ engine.name }}</td>
+                  <td>{% if engine.enabled %}<span class="ok">ON</span>{% else %}<span class="bad">OFF</span>{% endif %}</td>
+                  <td>{{ engine.source }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if not can_manage_advanced %}
+            <p class="warn">មើលបានតែប៉ុណ្ណោះ។ ការកែប្រែត្រូវការ Prompt Admin permission។</p>
+          {% endif %}
+        </div>
+
+        <div class="section">
           <h2>ទិន្នន័យផ្សព្វផ្សាយ (Broadcast)</h2>
           {% if can_manage_advanced %}
             <a class="btn" href="{% url 'chat:operator_export_contacts_csv' %}">ទាញយក CSV អ្នកប្រើ</a>
